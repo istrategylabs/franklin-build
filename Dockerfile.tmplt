@@ -3,7 +3,7 @@ FROM isldocker/build
 RUN eval `ssh-agent -s` && \
     ssh-add ~/.ssh/id_rsa && \
     ssh-keyscan github.com >> /root/.ssh/known_hosts && \
-    git clone -b {{ BRANCH }} git@github.com:{{ ORG }}/{{ REPO_NAME }}.git
+    git clone -b {{ BRANCH }} git@github.com:{{ REPO_NAME }}.git
 
 RUN cd {{ REPO_NAME }} && npm install
 RUN cd {{ REPO_NAME }}/client && bower install --allow-root --config.interactive=false
