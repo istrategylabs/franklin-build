@@ -4,4 +4,4 @@ RUN mkdir /code
 WORKDIR /code
 ADD build-api/requirements.txt /code/
 RUN pip install -r requirements.txt
-ADD ./build-api /code/
+ADD . /code/
