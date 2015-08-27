@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 from flask import Flask, jsonify, render_template, request
 
@@ -12,8 +13,9 @@ def build():
     git_hash = json.get('git_hash', None)
     path = json.get('path', None)
     if repo_name and git_hash and path:
-        tmp_dir = '../tmp/'
+        tmp_dir = 'tmp/'
         # TODO - pull this out and encapsulate
+        # Also, get rid of os commands. Use Popen from subprocess
         if not os.path.isdir(tmp_dir + path):
             os.makedirs(tmp_dir + path)
         filled_template = render_template('dockerfile.tmplt',
@@ -21,7 +23,13 @@ def build():
                                           BRANCH='master')
         with open(tmp_dir + 'Dockerfile', 'w') as f:
             f.write(filled_template)
-        # TODO execute a .sh(?) to build the app we have in that dir
+        # TODO - copt the template for docker-compose.yml into tmp
+        # TODO execute the `.sh` script to build the app we have in that dir
+        folder = subprocess.call('cd tmp', shell=True) # can't do this. Either
+        # use `os.` or use some smarter `Popen` command, telling it where to do
+        # it's thing. We're actually going to do this in a shell script
+        current_dir = subprocess.check_output(['ls', '-l'])
+
 
         # TODO should we return immediately with a "request accepted"? We
         # probably don't want api waiting a while for a response. If we do

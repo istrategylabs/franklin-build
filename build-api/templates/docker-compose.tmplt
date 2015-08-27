@@ -1,8 +1,6 @@
 web:
   build: .
-  working_dir: /code/build-api
+  working_dir: /code
   command: python api.py
-  volumes:
-    - .:/code
   ports:
     - "5000:5000"
