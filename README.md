@@ -1,5 +1,7 @@
 # Franklin Build
 
+![franklin](https://upload.wikimedia.org/wikipedia/en/c/c5/Bob_the_builder.jpg)
+
 ## Installation
 
 1. Since this project is very lightweight and requires building docker images,
