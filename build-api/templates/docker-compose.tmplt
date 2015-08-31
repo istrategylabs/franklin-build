@@ -1,6 +1,5 @@
 web:
   build: .
   working_dir: /code
-  command: python api.py
   ports:
     - "5000:5000"
