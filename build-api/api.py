@@ -14,11 +14,23 @@ def build():
     repo_owner = json.get('repo_owner', None)
     git_hash = json.get('git_hash', None)
 
-    if repo_name and repo_owner and git_hash:
-        tmp_dir = 'tmp/'
-        if not os.path.isdir(tmp_dir):
-            os.makedirs(tmp_dir)
+    # TODO - rsync final build results to the 'path' location
+    path = json.get('path', None)
 
+    if repo_name and repo_owner and git_hash and path:
+        tmp_dir = 'tmp/'
+
+        # Create our temporary working directory
+        try:
+            os.makedirs(tmp_dir)
+        except OSError, e:
+            if e.errno == 17 and os.path.isdir(tmp_dir):
+                # directory already exists. This is expected
+                pass
+            else:
+                raise
+
+        # Create a project specific Dockerfile from our template
         filled_template = render_template('dockerfile.tmplt',
                                           REPO_NAME=repo_name,
                                           REPO_OWNER=repo_owner,
@@ -27,11 +39,8 @@ def build():
         with open(tmp_dir + 'Dockerfile', 'w') as f:
             f.write(filled_template)
 
-        shutil.copyfile('build-api/templates/docker-compose.tmplt',
-                        'tmp/docker-compose.yml')
-        
         # Spin up the docker container to pull and build the project
-        startscript = subprocess.Popen('../build-api/scripts/pull_and_build_project.sh',
+        startscript = subprocess.Popen('docker build --no-cache=True --tag="franklin_builder:tmp" .',
                                        cwd='tmp',
                                        stdin=subprocess.PIPE,
                                        shell=True)
@@ -40,21 +49,25 @@ def build():
         if not error_returned:
             # TODO run any special commands needed against the docker container
             # for the project here.
+            pass
+        else:
+            # TODO special logic for error conditions
+            pass
 
-            #current_dir = subprocess.check_output(['ls', '-l'])
-            #docker-compose run web ls /milagro-tequila/client
+        # Done with the project. Destroy all of our tmp work
+        stopscript = subprocess.Popen('../build-api/scripts/tear_down_project.sh',
+                                      cwd='tmp',
+                                      stdin=subprocess.PIPE,
+                                      shell=True)
+        stopscript.wait()
+        shutil.rmtree(tmp_dir)
 
-            # Done deploying the project. Destroy all of our tmp work
-            stopscript = subprocess.Popen('../build-api/scripts/tear_down_project.sh',
-                                       cwd='tmp',
-                                       stdin=subprocess.PIPE,
-                                       shell=True)
-            stopscript.wait()
-
-            # TODO should we return immediately with a "request accepted"? We
-            # probably don't want api waiting a while for a response. If we do
-            # that, we'll probably want some sort of status endpoint for api to
-            # check in on or do a webhook/callback into api to update the status.
+        # Determine our response based on pass/fail
+        if not error_returned:
+            # TODO we should we return immediately with a "request accepted" 
+            # We don't want api calls waiting a while for a response. 
+            # We will either want a status endpoint for api to check in on or 
+            # do a webhook/callback into api to update the status.
             return jsonify(deployed=True, 
                            url='http://www.google.com/',
                            error='')

@@ -9,7 +9,7 @@
    for the moment. This will likely change in the future as the need arises. 
 1. Install python 2.7
 1. Install [docker toolbox](https://www.docker.com/toolbox)
-1. `pip install Flask==0.10.1`
+1. `pip install -r requirements.txt`
 
 ## Running
 1. `python build-api/api.py`
@@ -17,9 +17,10 @@
 
     ```
     {
-      "repo_name": "istrategylabs/franklin-api",
+      "repo_name": "franklin-api",
+      "repo_owner": "istrategylabs",
       "git_hash": "b6046c5bef74edfc1cbf35f97f62cebdadf6946a",
-      "path": "istrategylabs/franklin-api"
+      "path": "/home/www/projects/istrategylabs/franklin-api"
     }
     ```
 1. A successful response will look like:

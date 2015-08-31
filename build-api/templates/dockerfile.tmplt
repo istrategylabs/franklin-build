@@ -5,7 +5,7 @@ RUN eval `ssh-agent -s` && \
     ssh-keyscan github.com >> /root/.ssh/known_hosts && \
     git clone -b {{ BRANCH }} git@github.com:{{ REPO_OWNER }}/{{ REPO_NAME }}.git
 
-Run cd {{ REPO_NAME }} && git pull origin {{ BRANCH }}
+RUN cd {{ REPO_NAME }} && git pull origin {{ BRANCH }}
 RUN cd {{ REPO_NAME }} && git checkout {{ HASH }}
 
 RUN cd {{ REPO_NAME }} && npm install
