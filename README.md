@@ -7,7 +7,7 @@
 1. Since this project is very lightweight and requires building docker images,
    we are NOT currently run it using docker to avoid "Docker in Docker" (DinD) 
    for the moment. This will likely change in the future as the need arises. 
-1. Install python 2.7
+1. Install python 3.5
 1. Install [docker toolbox](https://www.docker.com/toolbox)
 1. `pip install -r requirements.txt`
 
