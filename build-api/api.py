@@ -66,15 +66,14 @@ def build():
                 raise
 
         # Create a project specific Dockerfile from our template
-        #TODO - create .env for username@remote_host:destination_directory
-        remote_location = "/"
+
         filled_template = render_template(
             'dockerfile.tmplt',
             REPO_NAME=repo_name,
             REPO_OWNER=repo_owner,
             BRANCH='docker',
             HASH=git_hash,
-            REMOTE_LOC=remote_location
+            REMOTE_LOC=path
         )
 
         with open(tmp_dir + 'Dockerfile', 'w') as f:

@@ -12,6 +12,5 @@ RUN cd {{ REPO_NAME }} && npm install
 RUN cd {{ REPO_NAME }}/client && bower install --allow-root --config.interactive=false
 RUN cd {{ REPO_NAME }} && npm run build
 
-RUN apt-get update && \
-    apt-get -y install rsync
+#TODO - we need creds so we can do username@remote_host:{{ REMOTE_LOC }}
 RUN rsync -azIeR ssh --delete {{ REPO_NAME }}/client/src/ {{ REMOTE_LOC }}
