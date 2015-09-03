@@ -15,10 +15,8 @@ def build_docker_container():
     )
     error_returned = startscript.wait()
 
-    # TODO either rsync the files on success here, or (better), do it from
-    # within the Dockerfile for the project. Either way, check for success
-    # here. Can probably pass back a custom error/success above to help
-    # with that validation.
+    # TODO check for success here. Confirm there were no errors during image
+    # creation and/or make an external call to confirm the new site is live.
 
     # Done with the project. Destroy all of our tmp work
     stopscript = subprocess.Popen(
@@ -68,12 +66,15 @@ def build():
                 raise
 
         # Create a project specific Dockerfile from our template
+        #remote_location = "username@remote_host:destination_directory"
+        remote_location = "/home/temp123/"
         filled_template = render_template(
             'dockerfile.tmplt',
             REPO_NAME=repo_name,
             REPO_OWNER=repo_owner,
             BRANCH='docker',
-            HASH=git_hash
+            HASH=git_hash,
+            REMOTE_LOC=remote_location
         )
 
         with open(tmp_dir + 'Dockerfile', 'w') as f:

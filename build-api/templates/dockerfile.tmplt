@@ -11,3 +11,4 @@ RUN cd {{ REPO_NAME }} && git checkout {{ HASH }}
 RUN cd {{ REPO_NAME }} && npm install
 RUN cd {{ REPO_NAME }}/client && bower install --allow-root --config.interactive=false
 RUN cd {{ REPO_NAME }} && npm run build
+RUN rsync -azIe ssh --progress --delete --dry-run {{ REPO_NAME }}/client/dist/ {{ REMOTE_LOC }}
