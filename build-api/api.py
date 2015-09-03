@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 def build_docker_container():
     # Spin up the docker container to pull and build the project
-    command = 'docker build --no-cache=True --tag="franklin_builder:tmp" .'
+    command = 'docker build --no-cache=True --tag="franklin_builder_tmp:tmp" .'
     startscript = subprocess.Popen(
         command,
         cwd='tmp',
@@ -26,7 +26,7 @@ def build_docker_container():
         shell=True
     )
     stopscript.wait()
-    shutil.rmtree(tmp_dir)
+    shutil.rmtree('tmp/')
 
 def call_in_background(target, *, loop=None, executor=None):
     """Schedules and starts target callable as a background task
@@ -50,7 +50,6 @@ def build():
     repo_owner = json.get('repo_owner', None)
     git_hash = json.get('git_hash', None)
 
-    # TODO - rsync final build results to the 'path' location
     path = json.get('path', None)
 
     if repo_name and repo_owner and git_hash and path:
