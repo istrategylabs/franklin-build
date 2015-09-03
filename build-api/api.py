@@ -66,8 +66,8 @@ def build():
                 raise
 
         # Create a project specific Dockerfile from our template
-        #remote_location = "username@remote_host:destination_directory"
-        remote_location = "/home/temp123/"
+        #TODO - create .env for username@remote_host:destination_directory
+        remote_location = "/"
         filled_template = render_template(
             'dockerfile.tmplt',
             REPO_NAME=repo_name,
@@ -83,15 +83,20 @@ def build():
         # We will spawn the docker build in a seperate process
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        threaded_builder = call_in_background(build_docker_container)
+        try:
+            threaded_builder = call_in_background(build_docker_container)
+        except TypeError:
+            return jsonify(building=False, 
+                           error='Background process setupfailed')
 
         # We will either want a status endpoint for api to check in on or
         # do a webhook/callback into api to update the status.
-        return jsonify(
-            deployed=True,
-            url='http://www.google.com/',
-            error=''
-        )
+        return jsonify(building=True, error='')
+    return jsonify(
+        building=False,
+        error='Please supply all arguments: ' + 
+              '(repo_name, repo_owner, git_hash, path)'
+    )
 
 if __name__ == "__main__":
     app.debug = True
