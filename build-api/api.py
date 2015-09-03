@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 def build_docker_container():
     # Spin up the docker container to pull and build the project
-    command = 'docker build --no-cache=True --tag="franklin_builder:tmp" .'
+    command = 'docker build --no-cache=True --tag="franklin_builder_tmp:tmp" .'
     startscript = subprocess.Popen(
         command,
         cwd='tmp',
@@ -15,10 +15,8 @@ def build_docker_container():
     )
     error_returned = startscript.wait()
 
-    # TODO either rsync the files on success here, or (better), do it from
-    # within the Dockerfile for the project. Either way, check for success
-    # here. Can probably pass back a custom error/success above to help
-    # with that validation.
+    # TODO check for success here. Confirm there were no errors during image
+    # creation and/or make an external call to confirm the new site is live.
 
     # Done with the project. Destroy all of our tmp work
     stopscript = subprocess.Popen(
@@ -28,7 +26,7 @@ def build_docker_container():
         shell=True
     )
     stopscript.wait()
-    shutil.rmtree(tmp_dir)
+    shutil.rmtree('tmp/')
 
 def call_in_background(target, *, loop=None, executor=None):
     """Schedules and starts target callable as a background task
@@ -52,7 +50,6 @@ def build():
     repo_owner = json.get('repo_owner', None)
     git_hash = json.get('git_hash', None)
 
-    # TODO - rsync final build results to the 'path' location
     path = json.get('path', None)
 
     if repo_name and repo_owner and git_hash and path:
@@ -68,12 +65,14 @@ def build():
                 raise
 
         # Create a project specific Dockerfile from our template
+
         filled_template = render_template(
             'dockerfile.tmplt',
             REPO_NAME=repo_name,
             REPO_OWNER=repo_owner,
             BRANCH='docker',
-            HASH=git_hash
+            HASH=git_hash,
+            REMOTE_LOC=path
         )
 
         with open(tmp_dir + 'Dockerfile', 'w') as f:
@@ -82,15 +81,20 @@ def build():
         # We will spawn the docker build in a seperate process
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        threaded_builder = call_in_background(build_docker_container)
+        try:
+            threaded_builder = call_in_background(build_docker_container)
+        except TypeError:
+            return jsonify(building=False, 
+                           error='Background process setupfailed')
 
         # We will either want a status endpoint for api to check in on or
         # do a webhook/callback into api to update the status.
-        return jsonify(
-            deployed=True,
-            url='http://www.google.com/',
-            error=''
-        )
+        return jsonify(building=True, error='')
+    return jsonify(
+        building=False,
+        error='Please supply all arguments: ' + 
+              '(repo_name, repo_owner, git_hash, path)'
+    )
 
 if __name__ == "__main__":
     app.debug = True
