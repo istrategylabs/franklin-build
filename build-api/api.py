@@ -83,7 +83,7 @@ def build():
         asyncio.set_event_loop(loop)
         try:
             threaded_builder = call_in_background(build_docker_container)
-        except TypeError:
+        except:
             return jsonify(building=False, 
                            error='Background process setupfailed')
 
