@@ -12,7 +12,7 @@
 1. `pip install -r requirements.txt`
 
 ## Running
-1. `python build-api/api.py`
+1. `cd build-api && python api.py`
 1. Make a POST request to `localhost:5000/build` with a body similar to: 
 
     ```

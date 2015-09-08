@@ -20,7 +20,7 @@ def build_docker_container():
 
     # Done with the project. Destroy all of our tmp work
     stopscript = subprocess.Popen(
-        '../build-api/scripts/tear_down_project.sh',
+        'scripts/tear_down_project.sh',
         cwd='tmp',
         stdin=subprocess.PIPE,
         shell=True
@@ -98,4 +98,4 @@ def build():
 
 if __name__ == "__main__":
     app.debug = True
-    app.run('0.0.0.0')
+    app.run(host='127.0.0.1', port=8000)
