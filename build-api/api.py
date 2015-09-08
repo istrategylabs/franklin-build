@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 def build_docker_container():
     # Spin up the docker container to pull and build the project
-    command = 'docker build --no-cache=True --tag="franklin_builder_tmp:tmp" .'
+    command = 'sudo docker build --no-cache=True --tag="franklin_builder_tmp:tmp" .'
     startscript = subprocess.Popen(
         command,
         cwd='tmp',
