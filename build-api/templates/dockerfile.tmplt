@@ -2,8 +2,7 @@ FROM isldocker/build:v5
 
 RUN eval `ssh-agent -s` && \
     ssh-add ~/.ssh/id_rsa && \
-    ssh-keyscan github.com >> /root/.ssh/known_hosts && \
-    git clone -b {{ BRANCH }} git@github.com:{{ REPO_OWNER }}/{{ REPO_NAME }}.git
+    git clone -b {{ BRANCH }} https://{{ TOKEN }}:x-oauth-basic@github.com/{{ REPO_OWNER }}/{{ REPO_NAME }}.git
 
 RUN cd {{ REPO_NAME }} && git pull origin {{ BRANCH }}
 RUN cd {{ REPO_NAME }} && git checkout {{ HASH }}
