@@ -17,6 +17,7 @@
 
     ```
     {
+      "github_token": "17a43f0a623f0391f6dd332gaa772cbfc9441b4c",
       "repo_name": "franklin-api",
       "repo_owner": "istrategylabs",
       "git_hash": "b6046c5bef74edfc1cbf35f97f62cebdadf6946a",
@@ -37,7 +38,7 @@
     ```
     { 
       "building": false, 
-      "error": "Please supply all arguments: (repo_name, repo_owner, git_hash, path)" 
+      "error": "Please supply all arguments: (github_repo, repo_name, repo_owner, git_hash, path)" 
     }
     ```
 
