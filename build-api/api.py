@@ -55,13 +55,13 @@ def call_in_background(target, *, loop=None, executor=None):
 def build():
     json = request.get_json()
     # an error is returned at this point if the json is bad
+    github_token = json.get('github_token', None)
     repo_name = json.get('repo_name', None)
     repo_owner = json.get('repo_owner', None)
     git_hash = json.get('git_hash', None)
-
     path = json.get('path', None)
 
-    if repo_name and repo_owner and git_hash and path:
+    if github_token and repo_name and repo_owner and git_hash and path:
         tmp_dir = 'tmp/'
         # Create our temporary working directory
         try:
@@ -79,11 +79,12 @@ def build():
 
         filled_template = render_template(
             'dockerfile.tmplt',
+            TOKEN=github_token,
             REPO_NAME=repo_name,
             REPO_OWNER=repo_owner,
             BRANCH='docker',
             HASH=git_hash,
-            REMOTE_LOC=path
+            REMOTE_LOC=path   
         )
 
         with open(tmp_dir + 'Dockerfile', 'w') as f:
@@ -106,8 +107,8 @@ def build():
     app.logger.info('Missing arguments')
     return jsonify(
         building=False,
-        error='Please supply all arguments: ' +
-              '(repo_name, repo_owner, git_hash, path)'
+        error='Please supply all arguments: ' + 
+              '(github_token, repo_name, repo_owner, git_hash, path)'
     )
 
 if __name__ == "__main__":
