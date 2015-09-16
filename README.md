@@ -2,6 +2,8 @@
 
 ![franklin](https://s-media-cache-ak0.pinimg.com/236x/d9/f9/97/d9f997346e9e651f152ad98f3ffde330.jpg)
 
+**Please use [gofmt](https://golang.org/cmd/gofmt/) before commiting any code**
+
 ## Installation
 
 1. Since this project is very lightweight and requires building docker images,
