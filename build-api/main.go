@@ -2,11 +2,20 @@ package main
 
 import (
 	"fmt"
+	"github.com/codegangsta/martini-contrib/binding"
 	"github.com/go-martini/martini"
-	"net/http"
 	"os"
 	"os/exec"
+	"text/template"
 )
+
+type DockerInfo struct {
+	BRANCH     string `json:"git_branch" binding:"required"`
+	HASH       string `json:"git_hash" binding:"required"`
+	REPO_OWNER string `json:"repo_owner" binding:"required"`
+	REMOTE_LOC string `json:"path" binding:"required"`
+	REPO_NAME  string `json:"repo_name" binding:"required"`
+}
 
 func buildDockerContainer() {
 	// We can pass in a callback here, or just handle the status update
@@ -28,13 +37,33 @@ func main() {
 		return "Hello world!"
 	})
 
-	m.Post("/build", func(res http.ResponseWriter, req *http.Request) {
-		// 1. Need to parse json from 'req'
-		// 2. Need to check that repoName, repoOwner and gitHash exist
-		// 3. Compile Dockerfile with template language we will choose
-		// 4. This should be all that is needed for concurrent/async builds
+	m.Post("/build", binding.Bind(DockerInfo{}), func(dockerInfo DockerInfo) string {
+
+		tmp_dir := "tmp"
+
+		docker_tmpl, err := template.ParseFiles("templates/dockerfile.tmplt")
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		err = os.Mkdir(tmp_dir, 0770)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		f, err := os.Create(tmp_dir + "/Dockerfile")
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer f.Close()
+
+		err = docker_tmpl.Execute(f, dockerInfo)
+		if err != nil {
+			fmt.Println(err)
+		}
 		go buildDockerContainer()
-		// 5. Return a json response with success or error if present
+		return "success"
 	})
 	m.Run()
+
 }

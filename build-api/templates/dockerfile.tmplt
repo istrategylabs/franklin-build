@@ -3,17 +3,17 @@ FROM isldocker/build:v5
 RUN eval `ssh-agent -s` && \
     ssh-add ~/.ssh/id_rsa && \
     ssh-keyscan github.com >> /root/.ssh/known_hosts && \
-    git clone -b {{ BRANCH }} git@github.com:{{ REPO_OWNER }}/{{ REPO_NAME }}.git
+    git clone -b {{ .BRANCH }} git@github.com:{{ .REPO_OWNER }}/{{ .REPO_NAME }}.git
 
-RUN cd {{ REPO_NAME }} && git pull origin {{ BRANCH }}
-RUN cd {{ REPO_NAME }} && git checkout {{ HASH }}
+RUN cd {{ .REPO_NAME }} && git pull origin {{ .BRANCH }}
+RUN cd {{ .REPO_NAME }} && git checkout {{ .HASH }}
 
-RUN cd {{ REPO_NAME }} && npm install
-RUN cd {{ REPO_NAME }}/client && bower install --allow-root --config.interactive=false
-RUN cd {{ REPO_NAME }} && npm run build
+RUN cd {{ .REPO_NAME }} && npm install
+RUN cd {{ .REPO_NAME }}/client && bower install --allow-root --config.interactive=false
+RUN cd {{ .REPO_NAME }} && npm run build
 
 RUN eval `ssh-agent -s` && \
     ssh-add /root/.ssh/franklin-static && \
     ssh-keyscan islstatic.com >> /root/.ssh/known_hosts && \
-    ssh -i /root/.ssh franklin@islstatic.com 'mkdir -p {{ REMOTE_LOC }}' && \
-    rsync -azIe "ssh -i /root/.ssh" --delete {{ REPO_NAME }}/client/dist/ franklin@islstatic.com:{{ REMOTE_LOC }}
+    ssh -i /root/.ssh franklin@islstatic.com 'mkdir -p {{ .REMOTE_LOC }}' && \
+    rsync -azIe "ssh -i /root/.ssh" --delete {{ .REPO_NAME }}/client/dist/ franklin@islstatic.com:{{ .REMOTE_LOC }}
