@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/codegangsta/martini-contrib/binding"
 	"github.com/go-martini/martini"
+	"github.com/martini-contrib/render"
 	"os"
 	"os/exec"
 	"text/template"
@@ -35,37 +36,37 @@ func buildDockerContainer() {
 
 func main() {
 	m := martini.Classic()
+	m.Use(render.Renderer())
 	m.Get("/", func() string {
 		return "Hello world!"
 	})
-
-	m.Post("/build", binding.Bind(DockerInfo{}), func(dockerInfo DockerInfo) string {
-
-		tmp_dir := "tmp"
-
-		docker_tmpl, err := template.ParseFiles("templates/dockerfile.tmplt")
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		err = os.Mkdir(tmp_dir, 0770)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		f, err := os.Create(tmp_dir + "/Dockerfile")
-		if err != nil {
-			fmt.Println(err)
-		}
-		defer f.Close()
-
-		err = docker_tmpl.Execute(f, dockerInfo)
-		if err != nil {
-			fmt.Println(err)
-		}
-		go buildDockerContainer()
-		return "success"
-	})
+	m.Post("/build", binding.Bind(DockerInfo{}), BuildDockerFile)
 	m.Run()
+
+}
+
+func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
+	tmp_dir := "tmp"
+
+	// Create a new Dockerfile template parses template definition
+	docker_tmpl, err := template.ParseFiles("templates/dockerfile.tmplt")
+	HandleErr(err)
+
+	// Create tmp directory
+	err = os.Mkdir(tmp_dir, 0770)
+	HandleErr(err)
+
+	// Create file
+	f, err := os.Create(tmp_dir + "/Dockerfile")
+	HandleErr(err)
+	defer f.Close()
+
+	//Apply the Dockerfile template to the docker info from the request
+	err = docker_tmpl.Execute(f, dockerInfo)
+	HandleErr(err)
+
+	// Build the docker container.
+	go buildDockerContainer()
+	r.JSON(200, map[string]interface{}{"success": true})
 
 }
