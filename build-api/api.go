@@ -16,6 +16,7 @@ type DockerInfo struct {
 	REPO_OWNER string `json:"repo_owner" binding:"required"`
 	REMOTE_LOC string `json:"path" binding:"required"`
 	REPO_NAME  string `json:"repo_name" binding:"required"`
+	TOKEN      string `json:"github_token" binding:"required"`
 }
 
 func buildDockerContainer() {
