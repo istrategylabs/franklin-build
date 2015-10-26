@@ -2,11 +2,13 @@ FROM isldocker/build:v5
 
 RUN eval `ssh-agent -s` && \
     ssh-add ~/.ssh/id_rsa && \
-    ssh-keyscan github.com >> /root/.ssh/known_hosts && \
-    git clone -b {{ .BRANCH }} git@github.com:{{ .REPO_OWNER }}/{{ .REPO_NAME }}.git
-
-RUN cd {{ .REPO_NAME }} && git pull origin {{ .BRANCH }}
-RUN cd {{ .REPO_NAME }} && git checkout {{ .HASH }}
+    ssh-keyscan github.com >> /root/.ssh/known_hosts
+{{if .TAG}}    
+RUN git clone -b {{ .TAG }} git@github.com:{{ .REPO_OWNER }}/{{ .REPO_NAME }}.git
+{{else}}
+RUN git clone -b {{ .BRANCH }} git@github.com:{{ .REPO_OWNER }}/{{ .REPO_NAME }}.git
+RUN cd {{ .REPO_NAME }} && git checkout {{ .HASH }} 
+{{end}}
 
 RUN cd {{ .REPO_NAME }} && npm install
 RUN cd {{ .REPO_NAME }}/client && bower install --allow-root --config.interactive=false

@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/codegangsta/martini-contrib/binding"
 	"github.com/go-martini/martini"
+	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
 	"os"
 	"os/exec"
@@ -11,12 +11,13 @@ import (
 )
 
 type DockerInfo struct {
-	BRANCH     string `json:"git_branch" binding:"required"`
+	DEPLOY_KEY string `json:"deploy_key" binding:"required"`
+	BRANCH     string `json:"branch"`
+	TAG        string `json:"tag"`
 	HASH       string `json:"git_hash" binding:"required"`
 	REPO_OWNER string `json:"repo_owner" binding:"required"`
-	REMOTE_LOC string `json:"path" binding:"required"`
+	PATH       string `json:"path" binding:"required"`
 	REPO_NAME  string `json:"repo_name" binding:"required"`
-	TOKEN      string `json:"github_token" binding:"required"`
 }
 
 func buildDockerContainer() {
