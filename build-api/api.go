@@ -47,8 +47,8 @@ func main() {
 
 }
 
-func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
-	tmp_dir := "tmp"
+func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) {
+	tmp_dir := buildDir
 
 	// Create a new Dockerfile template parses template definition
 	docker_tmpl, err := template.ParseFiles("templates/dockerfile.tmplt")
@@ -66,9 +66,10 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	//Apply the Dockerfile template to the docker info from the request
 	err = docker_tmpl.Execute(f, dockerInfo)
 	HandleErr(err)
+}
 
-	// Build the docker container.
+func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
+	GenerateDockerFile(dockerInfo, "tmp")
 	go buildDockerContainer()
 	r.JSON(200, map[string]interface{}{"success": true})
-
 }
