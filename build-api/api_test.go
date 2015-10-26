@@ -46,11 +46,12 @@ func TestDockerfileCreation(t *testing.T) {
 	dat, err := ioutil.ReadFile("test/sample_data.json")
 	HandleErr(err)
 
+	// We read the sample json data and create a new DockerInfo struct
 	var parsed_data DockerInfo
-
 	err = json.Unmarshal(dat, &parsed_data)
 	HandleErr(err)
 
+	// Pass the DockerInfo struct into the GenerateDockerFile function
 	GenerateDockerFile(parsed_data, "test")
 	defer os.Remove("test/Dockerfile")
 
@@ -59,11 +60,10 @@ func TestDockerfileCreation(t *testing.T) {
 	HandleErr(err)
 
 	generated_hash := sha1.New()
-
 	generated_hash.Write([]byte(f))
-
 	bs := generated_hash.Sum(nil)
 
+	// We would like a hex-encoding string to compare with
 	hash_string := hex.EncodeToString(bs[:])
 
 	expect(t, hash_string, expected_hash)
