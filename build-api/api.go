@@ -20,20 +20,29 @@ type DockerInfo struct {
 	REPO_NAME  string `json:"repo_name" binding:"required"`
 }
 
-func buildDockerContainer() {
+func buildDockerContainer(test bool) {
 	// We can pass in a callback here, or just handle the status update
 	// request from this function
-	buildCommand := exec.Command("docker", "build", "--no-cache=True", "--tags='franklin_builder_tmp:tmp'", ".")
-	if err := buildCommand.Run(); err != nil {
-		fmt.Println(os.Stderr, err)
+
+	if test == false {
+		buildCommand := exec.Command("docker", "build", "--no-cache=True", "--tags='franklin_builder_tmp:tmp'", ".")
+		if err := buildCommand.Run(); err != nil {
+			fmt.Println(os.Stderr, err)
+		}
+
+		tearDown := exec.Command("scripts/tear_down_project.sh")
+		if err := tearDown.Run(); err != nil {
+			fmt.Println(os.Stderr, err)
+		}
+
+		os.Remove("tmp/")
+	} else {
+		buildCommand := exec.Command("docker", "build", "--no-cache=True", "--tags='franklin_builder_tmp:tmp'", ".")
+		if err := buildCommand.Run(); err != nil {
+			fmt.Println(os.Stderr, err)
+		}
 	}
 
-	tearDown := exec.Command("scripts/tear_down_project.sh")
-	if err := tearDown.Run(); err != nil {
-		fmt.Println(os.Stderr, err)
-	}
-
-	os.Remove("tmp/")
 }
 
 func main() {
@@ -44,7 +53,6 @@ func main() {
 	})
 	m.Post("/build", binding.Bind(DockerInfo{}), BuildDockerFile)
 	m.Run()
-
 }
 
 func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) {

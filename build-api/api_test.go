@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	// "os"
 	"reflect"
 	"testing"
 )
@@ -40,7 +40,7 @@ func expect(t *testing.T, a interface{}, b interface{}) {
 
 func TestDockerfileCreation(t *testing.T) {
 	// The 'expected' hash
-	expected_hash := "d34aeddb569f9f15aadd3bb46abf3c39872f659a"
+	expected_hash := "0dde258128fe6a63dd8a62d3422e50601e00163d"
 
 	// First we will read the sample json file
 	dat, err := ioutil.ReadFile("test/sample_data.json")
@@ -53,7 +53,7 @@ func TestDockerfileCreation(t *testing.T) {
 
 	// Pass the DockerInfo struct into the GenerateDockerFile function
 	GenerateDockerFile(parsed_data, "test")
-	defer os.Remove("test/Dockerfile")
+	// defer os.Remove("test/Dockerfile")
 
 	// Generate a sha1 hash of the generated Dockerfile and compare
 	f, err := ioutil.ReadFile("test/Dockerfile")
