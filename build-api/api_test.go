@@ -68,3 +68,8 @@ func TestDockerfileCreation(t *testing.T) {
 
 	expect(t, hash_string, expected_hash)
 }
+
+func TestDockerBuild(t *testing.T) {
+	expected_hash := "f6517a816b06d9f31f2bcbccc1ad6d6a4b7feded"
+
+}

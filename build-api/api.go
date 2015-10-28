@@ -37,7 +37,7 @@ func buildDockerContainer(test bool) {
 
 		os.Remove("tmp/")
 	} else {
-		buildCommand := exec.Command("docker", "build", "--no-cache=True", "--tags='franklin_builder_tmp:tmp'", ".")
+		buildCommand := exec.Command("test/scripts/build_test.sh")
 		if err := buildCommand.Run(); err != nil {
 			fmt.Println(os.Stderr, err)
 		}
@@ -78,6 +78,6 @@ func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) {
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	GenerateDockerFile(dockerInfo, "tmp")
-	go buildDockerContainer()
+	go buildDockerContainer(false)
 	r.JSON(200, map[string]interface{}{"success": true})
 }
