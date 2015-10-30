@@ -5,8 +5,10 @@ import (
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
+	"math/rand"
 	"os"
 	"os/exec"
+	"strconv"
 	"text/template"
 )
 
@@ -20,29 +22,23 @@ type DockerInfo struct {
 	REPO_NAME  string `json:"repo_name" binding:"required"`
 }
 
-func buildDockerContainer(test bool) {
-	// We can pass in a callback here, or just handle the status update
-	// request from this function
+func buildDockerContainer() {
+	// First we will create a random tag to apply to the build container
+	randomTag := rand.Intn(1000)
+	fmt.Println("Random tag is: ", randomTag)
 
-	if test == false {
-		buildCommand := exec.Command("docker", "build", "--no-cache=True", "--tags='franklin_builder_tmp:tmp'", ".")
-		if err := buildCommand.Run(); err != nil {
-			fmt.Println(os.Stderr, err)
-		}
+	buildCommand := exec.Command("docker", "build", "--no-cache=True", "-t", strconv.Itoa(randomTag), ".")
 
-		tearDown := exec.Command("scripts/tear_down_project.sh")
-		if err := tearDown.Run(); err != nil {
-			fmt.Println(os.Stderr, err)
-		}
-
-		os.Remove("tmp/")
-	} else {
-		buildCommand := exec.Command("test/scripts/build_test.sh")
-		if err := buildCommand.Run(); err != nil {
-			fmt.Println(os.Stderr, err)
-		}
+	if err := buildCommand.Run(); err != nil {
+		fmt.Println(os.Stderr, err)
 	}
 
+	// tearDown := exec.Command("scripts/tear_down_project.sh")
+	// if err := tearDown.Run(); err != nil {
+	// 	fmt.Println(os.Stderr, err)
+	// }
+
+	// os.Remove("tmp/")
 }
 
 func main() {
@@ -78,6 +74,6 @@ func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) {
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	GenerateDockerFile(dockerInfo, "tmp")
-	go buildDockerContainer(false)
+	go buildDockerContainer()
 	r.JSON(200, map[string]interface{}{"success": true})
 }
