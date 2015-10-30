@@ -5,10 +5,11 @@ import (
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
+	"log"
 	"math/rand"
 	"os"
 	"os/exec"
-	"strconv"
+	// "strconv"
 	"text/template"
 )
 
@@ -27,10 +28,14 @@ func buildDockerContainer() {
 	randomTag := rand.Intn(1000)
 	fmt.Println("Random tag is: ", randomTag)
 
-	buildCommand := exec.Command("docker", "build", "--no-cache=True", "-t", strconv.Itoa(randomTag), ".")
+	// buildCommand := exec.Command("docker", "build", "--no-cache=True", "-t", strconv.Itoa(randomTag), ".")
+	out, err := exec.Command("docker", "build", "--no-cache=True", "-t", "test987", ".").Output()
 
-	if err := buildCommand.Run(); err != nil {
-		fmt.Println(os.Stderr, err)
+	fmt.Println(out)
+
+	if err != nil {
+		fmt.Println("An error as occured")
+		log.Fatal(err)
 	}
 
 	// tearDown := exec.Command("scripts/tear_down_project.sh")
@@ -73,7 +78,8 @@ func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) {
 }
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
-	GenerateDockerFile(dockerInfo, "tmp")
+	GenerateDockerFile(dockerInfo, ".")
+	fmt.Println("Built dockerfile")
 	go buildDockerContainer()
 	r.JSON(200, map[string]interface{}{"success": true})
 }
