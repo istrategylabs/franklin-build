@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"text/template"
 )
 
@@ -25,19 +26,13 @@ type DockerInfo struct {
 }
 
 // buildDockerContainer executes a docker build command and assigns it a random tag
-func buildDockerContainer() string {
+func buildDockerContainer(com chan string) {
 	randomTag := strconv.Itoa(rand.Intn(1000))
 	_, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, ".").Output()
-
 	logging.LogToFile(err)
 
-	// tearDown := exec.Command("scripts/tear_down_project.sh")
-	// if err := tearDown.Run(); err != nil {
-	// 	fmt.Println(os.Stderr, err)
-	// }
-
-	// os.Remove("tmp/")
-	return randomTag
+	// Passing along the randomTag associated with the built docker container to the channel 'com'
+	com <- randomTag
 }
 
 func main() {
@@ -53,7 +48,7 @@ func main() {
 	m.Run()
 }
 
-func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) error {
+func generateDockerFile(dockerInfo DockerInfo, buildDir string) error {
 	var err_return error
 
 	// Create a new Dockerfile template parses template definition
@@ -80,17 +75,45 @@ func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) error {
 	return err_return
 }
 
-func GrabBuiltStaticFiles(dockerImageID string, transferLocation string) {
+// grabBuiltStaticFiles issues a `docker run` command to the container image
+// we created that will transfer built files to specified location
+func grabBuiltStaticFiles(dockerImageID string, transferLocation string) {
+	// This will need to change eventually...hardcoding for testing purposes
+	// projectName := "franklin-test"
+	mountStringSlice := []string{transferLocation, ":", "tmp_mount"}
+	mountString := strings.Join(mountStringSlice, "")
+	fmt.Println(mountString)
+
+	// err = os.Mkdir(transferLocation, 0770)
+	// logging.LogToFile(err)
+
+	// _, err := exec.Command("docker", "run", "-v", "-t", randomTag, ".").Output()
+
+	// docker run -v `pwd`/build_directory:/tmp_mount tmp_id cp -r /$project_name/dist /tmp_mount
+	// logging.LogToFile(err)
 
 }
 
+func build() {
+	c1 := make(chan string)
+	go buildDockerContainer(c1)
+
+	// Looping until we get notification on the channel c1 that the build has finished
+	for {
+		select {
+		case buildTag := <-c1:
+			grabBuiltStaticFiles(buildTag, "tmp_build_dir")
+		}
+	}
+}
+
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
-	err := GenerateDockerFile(dockerInfo, ".")
+	err := generateDockerFile(dockerInfo, ".")
 
 	if err != nil {
 		r.JSON(500, map[string]interface{}{"success": false})
 	}
 
-	go buildDockerContainer()
+	go build()
 	r.JSON(200, map[string]interface{}{"success": true})
 }
