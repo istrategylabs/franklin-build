@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 )
 
 // A DockerInfo represents the structure of data coming from Franklin-api
@@ -27,9 +28,10 @@ type DockerInfo struct {
 
 // buildDockerContainer executes a docker build command and assigns it a random tag
 func buildDockerContainer(com chan string) {
+	// First we will seed the random number generator
+	rand.Seed(time.Now().UnixNano())
 	randomTag := strconv.Itoa(rand.Intn(1000))
-	_, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, ".").Output()
-	logging.LogToFile(err)
+	exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, ".").Run()
 
 	// Passing along the randomTag associated with the built docker container to the channel 'com'
 	com <- randomTag
@@ -56,12 +58,10 @@ func generateDockerFile(dockerInfo DockerInfo, buildDir string) error {
 	logging.LogToFile(err)
 	err_return = err
 
-	// Create tmp directory
 	err = os.Mkdir(buildDir, 0770)
 	logging.LogToFile(err)
 	err_return = err
 
-	// Create file
 	f, err := os.Create(buildDir + "/Dockerfile")
 	logging.LogToFile(err)
 	err_return = err
@@ -79,22 +79,32 @@ func generateDockerFile(dockerInfo DockerInfo, buildDir string) error {
 // we created that will transfer built files to specified location
 func grabBuiltStaticFiles(dockerImageID string, transferLocation string) {
 	// This will need to change eventually...hardcoding for testing purposes
-	// projectName := "franklin-test"
-	mountStringSlice := []string{transferLocation, ":", "tmp_mount"}
+	projectName := "franklin-test"
+
+	// Not sure if this is the best way to handle "dynamic strings"
+	mountStringSlice := []string{transferLocation, ":", "/tmp_mount"}
 	mountString := strings.Join(mountStringSlice, "")
-	fmt.Println(mountString)
 
-	// err = os.Mkdir(transferLocation, 0770)
-	// logging.LogToFile(err)
+	copyCommand := []string{"cp -r /", projectName, "/dist"}
+	copyCommandString := strings.Join(copyCommand, "")
+	copyCommandString += " /tmp_mount/"
 
-	// _, err := exec.Command("docker", "run", "-v", "-t", randomTag, ".").Output()
+	err := os.Mkdir(transferLocation, 0770)
+	logging.LogToFile(err)
 
-	// docker run -v `pwd`/build_directory:/tmp_mount tmp_id cp -r /$project_name/dist /tmp_mount
-	// logging.LogToFile(err)
+	fmt.Println("About to copy files")
+	fmt.Println("randomID: " + dockerImageID)
+	fmt.Println("mountString: " + mountString)
+	fmt.Println("copyString: " + copyCommandString)
+	// docker run -i -t -v /Users/gindi/Desktop/tmp_build_dir:/tmp_mount 732 cp -r /franklin-test/dist /tmp_mount/
+
+	// err = exec.Command("docker", "run", "-v", mountString, dockerImageID, copyCommandString).Run()
+	err = exec.Command("docker", "run", "-v", "/Users/gindi/Desktop/tmp_build_dir:/tmp_mount", dockerImageID, "cp -r /franklin-test/dist /tmp_mount/").Run()
+	logging.LogToFile(err)
 
 }
 
-func build() {
+func build(buildDir string) {
 	c1 := make(chan string)
 	go buildDockerContainer(c1)
 
@@ -102,7 +112,8 @@ func build() {
 	for {
 		select {
 		case buildTag := <-c1:
-			grabBuiltStaticFiles(buildTag, "tmp_build_dir")
+			logging.LogToFile("Container built...transfering built files")
+			grabBuiltStaticFiles(buildTag, buildDir)
 		}
 	}
 }
@@ -114,6 +125,8 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 		r.JSON(500, map[string]interface{}{"success": false})
 	}
 
-	go build()
+	logging.LogToFile("Dockerfile generated successfully...building container...")
+	// TODO: Obviously change this
+	go build("/Users/gindi/Desktop/tmp_build_dir")
 	r.JSON(200, map[string]interface{}{"success": true})
 }
