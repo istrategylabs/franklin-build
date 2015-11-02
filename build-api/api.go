@@ -1,18 +1,19 @@
 package main
 
 import (
+	"./logging"
 	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
-	"log"
 	"math/rand"
 	"os"
 	"os/exec"
-	// "strconv"
+	"strconv"
 	"text/template"
 )
 
+// A DockerInfo represents the structure of data coming from Franklin-api
 type DockerInfo struct {
 	DEPLOY_KEY string `json:"deploy_key" binding:"required"`
 	BRANCH     string `json:"branch"`
@@ -23,20 +24,12 @@ type DockerInfo struct {
 	REPO_NAME  string `json:"repo_name" binding:"required"`
 }
 
-func buildDockerContainer() {
-	// First we will create a random tag to apply to the build container
-	randomTag := rand.Intn(1000)
-	fmt.Println("Random tag is: ", randomTag)
+// buildDockerContainer executes a docker build command and assigns it a random tag
+func buildDockerContainer() string {
+	randomTag := strconv.Itoa(rand.Intn(1000))
+	_, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, ".").Output()
 
-	// buildCommand := exec.Command("docker", "build", "--no-cache=True", "-t", strconv.Itoa(randomTag), ".")
-	out, err := exec.Command("docker", "build", "--no-cache=True", "-t", "test987", ".").Output()
-
-	fmt.Println(out)
-
-	if err != nil {
-		fmt.Println("An error as occured")
-		log.Fatal(err)
-	}
+	logging.LogToFile(err)
 
 	// tearDown := exec.Command("scripts/tear_down_project.sh")
 	// if err := tearDown.Run(); err != nil {
@@ -44,42 +37,60 @@ func buildDockerContainer() {
 	// }
 
 	// os.Remove("tmp/")
+	return randomTag
 }
 
 func main() {
 	m := martini.Classic()
 	m.Use(render.Renderer())
-	m.Get("/", func() string {
+
+	// Simple 'health' endpoint for AWS load-balancer health checks
+	m.Get("/health", func() string {
 		return "Hello world!"
 	})
+
 	m.Post("/build", binding.Bind(DockerInfo{}), BuildDockerFile)
 	m.Run()
 }
 
-func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) {
-	tmp_dir := buildDir
+func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) error {
+	var err_return error
 
 	// Create a new Dockerfile template parses template definition
 	docker_tmpl, err := template.ParseFiles("templates/dockerfile.tmplt")
-	HandleErr(err)
+	logging.LogToFile(err)
+	err_return = err
 
 	// Create tmp directory
-	err = os.Mkdir(tmp_dir, 0770)
-	HandleErr(err)
+	err = os.Mkdir(buildDir, 0770)
+	logging.LogToFile(err)
+	err_return = err
 
 	// Create file
-	f, err := os.Create(tmp_dir + "/Dockerfile")
-	HandleErr(err)
+	f, err := os.Create(buildDir + "/Dockerfile")
+	logging.LogToFile(err)
+	err_return = err
 	defer f.Close()
 
 	//Apply the Dockerfile template to the docker info from the request
 	err = docker_tmpl.Execute(f, dockerInfo)
-	HandleErr(err)
+	err_return = err
+	logging.LogToFile(err)
+
+	return err_return
+}
+
+func GrabBuiltStaticFiles(dockerImageID string, transferLocation string) {
+
 }
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
-	GenerateDockerFile(dockerInfo, ".")
-	fmt.Println("Built dockerfile")
+	err := GenerateDockerFile(dockerInfo, ".")
+
+	if err != nil {
+		r.JSON(500, map[string]interface{}{"success": false})
+	}
+
 	go buildDockerContainer()
 	r.JSON(200, map[string]interface{}{"success": true})
 }
