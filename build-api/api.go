@@ -2,7 +2,6 @@ package main
 
 import (
 	"./logging"
-	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
@@ -85,23 +84,13 @@ func grabBuiltStaticFiles(dockerImageID string, transferLocation string) {
 	mountStringSlice := []string{transferLocation, ":", "/tmp_mount"}
 	mountString := strings.Join(mountStringSlice, "")
 
-	copyCommand := []string{"cp -r /", projectName, "/dist"}
-	copyCommandString := strings.Join(copyCommand, "")
-	copyCommandString += " /tmp_mount/"
-
 	err := os.Mkdir(transferLocation, 0770)
 	logging.LogToFile(err)
 
-	fmt.Println("About to copy files")
-	fmt.Println("randomID: " + dockerImageID)
-	fmt.Println("mountString: " + mountString)
-	fmt.Println("copyString: " + copyCommandString)
-	// docker run -i -t -v /Users/gindi/Desktop/tmp_build_dir:/tmp_mount 732 cp -r /franklin-test/dist /tmp_mount/
-
-	// err = exec.Command("docker", "run", "-v", mountString, dockerImageID, copyCommandString).Run()
-	err = exec.Command("docker", "run", "-v", "/Users/gindi/Desktop/tmp_build_dir:/tmp_mount", dockerImageID, "cp -r /franklin-test/dist /tmp_mount/").Run()
+	transfer := exec.Command("scripts/transfer_files.sh", mountString, dockerImageID, projectName)
+	res, err := transfer.CombinedOutput()
 	logging.LogToFile(err)
-
+	logging.LogToFile(string(res))
 }
 
 func build(buildDir string) {
