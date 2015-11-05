@@ -2,7 +2,6 @@ package main
 
 import (
 	"./logging"
-	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
@@ -77,10 +76,7 @@ func generateDockerFile(dockerInfo DockerInfo, buildDir string) error {
 
 // grabBuiltStaticFiles issues a `docker run` command to the container image
 // we created that will transfer built files to specified location
-func grabBuiltStaticFiles(dockerImageID string, transferLocation string) {
-	// This will need to change eventually...hardcoding for testing purposes
-	projectName := "franklin-test"
-
+func grabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
 	// Not sure if this is the best way to handle "dynamic strings"
 	mountStringSlice := []string{transferLocation, ":", "/tmp_mount"}
 	mountString := strings.Join(mountStringSlice, "")
@@ -94,7 +90,7 @@ func grabBuiltStaticFiles(dockerImageID string, transferLocation string) {
 	logging.LogToFile(string(res))
 }
 
-func build(buildDir string) {
+func build(buildDir, projectName string) {
 	c1 := make(chan string)
 	go buildDockerContainer(c1)
 
@@ -103,7 +99,7 @@ func build(buildDir string) {
 		select {
 		case buildTag := <-c1:
 			logging.LogToFile("Container built...transfering built files")
-			grabBuiltStaticFiles(buildTag, buildDir)
+			grabBuiltStaticFiles(buildTag, projectName, buildDir)
 		}
 	}
 }
@@ -111,14 +107,12 @@ func build(buildDir string) {
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	err := generateDockerFile(dockerInfo, ".")
 
-	fmt.Println(dockerInfo.REPO_NAME)
-
 	if err != nil {
 		r.JSON(500, map[string]interface{}{"success": false})
 	}
 
 	logging.LogToFile("Dockerfile generated successfully...building container...")
 	// TODO: Obviously change this
-	go build("/Users/gindi/Desktop/tmp_build_dir")
+	go build("/Users/gindi/Desktop/tmp_build_dir", dockerInfo.REPO_NAME)
 	r.JSON(200, map[string]interface{}{"success": true})
 }
