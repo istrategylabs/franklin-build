@@ -2,6 +2,7 @@ package main
 
 import (
 	"./logging"
+	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
@@ -109,6 +110,8 @@ func build(buildDir string) {
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	err := generateDockerFile(dockerInfo, ".")
+
+	fmt.Println(dockerInfo.REPO_NAME)
 
 	if err != nil {
 		r.JSON(500, map[string]interface{}{"success": false})
