@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
@@ -16,5 +17,11 @@ func LogToFile(message interface{}) {
 
 		log.SetOutput(file)
 		log.Println(log.Lshortfile, message)
+	}
+}
+
+func HandleErr(err error) {
+	if err != nil {
+		fmt.Println(err)
 	}
 }

@@ -30,6 +30,7 @@ func buildDockerContainer(com chan string) {
 	// First we will seed the random number generator
 	rand.Seed(time.Now().UnixNano())
 	randomTag := strconv.Itoa(rand.Intn(1000))
+	// TODO: REMOVE TEMP LAYERS
 	exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, ".").Run()
 
 	// Passing along the randomTag associated with the built docker container to the channel 'com'
@@ -49,7 +50,7 @@ func main() {
 	m.Run()
 }
 
-func generateDockerFile(dockerInfo DockerInfo, buildDir string) error {
+func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) error {
 	var err_return error
 
 	// Create a new Dockerfile template parses template definition
@@ -76,7 +77,7 @@ func generateDockerFile(dockerInfo DockerInfo, buildDir string) error {
 
 // grabBuiltStaticFiles issues a `docker run` command to the container image
 // we created that will transfer built files to specified location
-func grabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
+func GrabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
 	// Not sure if this is the best way to handle "dynamic strings"
 	mountStringSlice := []string{transferLocation, ":", "/tmp_mount"}
 	mountString := strings.Join(mountStringSlice, "")
@@ -90,7 +91,7 @@ func grabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
 	logging.LogToFile(string(res))
 }
 
-func build(buildDir, projectName string) {
+func Build(buildDir, projectName string) string {
 	c1 := make(chan string)
 	go buildDockerContainer(c1)
 
@@ -98,21 +99,23 @@ func build(buildDir, projectName string) {
 	for {
 		select {
 		case buildTag := <-c1:
-			logging.LogToFile("Container built...transfering built files")
-			grabBuiltStaticFiles(buildTag, projectName, buildDir)
+			logging.LogToFile("Container built...transfering built files...")
+			GrabBuiltStaticFiles(buildTag, projectName, buildDir)
+			return "success"
 		}
 	}
 }
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
-	err := generateDockerFile(dockerInfo, ".")
+	buildLocation := os.Getenv("BUILD_LOCATION")
+	err := GenerateDockerFile(dockerInfo, ".")
 
 	if err != nil {
 		r.JSON(500, map[string]interface{}{"success": false})
 	}
 
 	logging.LogToFile("Dockerfile generated successfully...building container...")
-	// TODO: Obviously change this
-	go build("/Users/gindi/Desktop/tmp_build_dir", dockerInfo.REPO_NAME)
+
+	go Build(buildLocation, dockerInfo.REPO_NAME)
 	r.JSON(200, map[string]interface{}{"success": true})
 }

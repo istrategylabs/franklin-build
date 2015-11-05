@@ -1,6 +1,7 @@
 package main
 
 import (
+	"./logging"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -8,7 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	// "os"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -44,20 +45,20 @@ func TestDockerfileCreation(t *testing.T) {
 
 	// First we will read the sample json file
 	dat, err := ioutil.ReadFile("test/sample_data.json")
-	HandleErr(err)
+	logging.HandleErr(err)
 
 	// We read the sample json data and create a new DockerInfo struct
 	var parsed_data DockerInfo
 	err = json.Unmarshal(dat, &parsed_data)
-	HandleErr(err)
+	logging.HandleErr(err)
 
 	// Pass the DockerInfo struct into the GenerateDockerFile function
 	GenerateDockerFile(parsed_data, "test")
-	// defer os.Remove("test/Dockerfile")
+	defer os.Remove("test/Dockerfile")
 
 	// Generate a sha1 hash of the generated Dockerfile and compare
 	f, err := ioutil.ReadFile("test/Dockerfile")
-	HandleErr(err)
+	logging.HandleErr(err)
 
 	generated_hash := sha1.New()
 	generated_hash.Write([]byte(f))
@@ -70,6 +71,18 @@ func TestDockerfileCreation(t *testing.T) {
 }
 
 func TestDockerBuild(t *testing.T) {
-	expected_hash := "f6517a816b06d9f31f2bcbccc1ad6d6a4b7feded"
+	// expected_hash := "e36689be3150a0b05b88d298cae573b5a60e7b4e"
+	dat, err := ioutil.ReadFile("test/sample_data.json")
+
+	var parsed_data DockerInfo
+	err = json.Unmarshal(dat, &parsed_data)
+	logging.HandleErr(err)
+
+	GenerateDockerFile(parsed_data, "test")
+	buildLocation := "test/test_build_loc"
+	Build(buildLocation, parsed_data.REPO_NAME)
+
+	// We want to tar that up and compare with the expected hash
+	// We than want to clean up after ourselves
 
 }
