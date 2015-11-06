@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"reflect"
 	"testing"
 )
@@ -41,7 +42,7 @@ func expect(t *testing.T, a interface{}, b interface{}) {
 
 func TestDockerfileCreation(t *testing.T) {
 	// The 'expected' hash
-	expected_hash := "0dde258128fe6a63dd8a62d3422e50601e00163d"
+	expected_hash := "033429aed5b9104f5c8d0a15ed2b9a043ce93a70"
 
 	// First we will read the sample json file
 	dat, err := ioutil.ReadFile("test/sample_data.json")
@@ -71,7 +72,7 @@ func TestDockerfileCreation(t *testing.T) {
 }
 
 func TestDockerBuild(t *testing.T) {
-	// expected_hash := "e36689be3150a0b05b88d298cae573b5a60e7b4e"
+	expected_hash := "da39a3ee5e6b4b0d3255bfef95601890afd80709"
 	dat, err := ioutil.ReadFile("test/sample_data.json")
 
 	var parsed_data DockerInfo
@@ -83,6 +84,22 @@ func TestDockerBuild(t *testing.T) {
 	Build(buildLocation, parsed_data.REPO_NAME)
 
 	// We want to tar that up and compare with the expected hash
+	tar := exec.Command("test/scripts/tar_files.sh", buildLocation)
+	_, err = tar.CombinedOutput()
+	logging.HandleErr(err)
+
+	fileLocation := buildLocation + "/test.tar"
+	f, err := ioutil.ReadFile(fileLocation)
+	logging.HandleErr(err)
+
+	generated_hash := sha1.New()
+	generated_hash.Write([]byte(f))
+	bs := generated_hash.Sum(nil)
+
+	// We would like a hex-encoding string to compare with
+	hash_string := hex.EncodeToString(bs[:])
+	expect(t, hash_string, expected_hash)
+
 	// We than want to clean up after ourselves
 
 }
