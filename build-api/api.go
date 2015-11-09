@@ -25,8 +25,8 @@ type DockerInfo struct {
 	REPO_NAME  string `json:"repo_name" binding:"required"`
 }
 
-// buildDockerContainer executes a docker build command and assigns it a random tag
-func buildDockerContainer(com chan string) {
+// BuildDockerContainer executes a docker build command and assigns it a random tag
+func BuildDockerContainer(com chan string) {
 	// First we will seed the random number generator
 	rand.Seed(time.Now().UnixNano())
 	randomTag := strconv.Itoa(rand.Intn(1000))
@@ -93,7 +93,7 @@ func GrabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
 
 func Build(buildDir, projectName string) string {
 	c1 := make(chan string)
-	go buildDockerContainer(c1)
+	go BuildDockerContainer(c1)
 
 	// Looping until we get notification on the channel c1 that the build has finished
 	for {
@@ -104,6 +104,13 @@ func Build(buildDir, projectName string) string {
 			return "success"
 		}
 	}
+}
+
+func rsyncProject(buildDir, remoteLoc string) {
+	rsyncCommand := exec.Command("scripts/rsync_project.sh", buildDir, remoteLoc)
+	res, err := rsyncCommand.CombinedOutput()
+	logging.LogToFile(err)
+	logging.LogToFile(string(res))
 }
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
