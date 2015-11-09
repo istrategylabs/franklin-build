@@ -1,15 +1,20 @@
 package main
 
 import (
-	"fmt"
+	"./logging"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
+	"math/rand"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"text/template"
+	"time"
 )
 
+// A DockerInfo represents the structure of data coming from Franklin-api
 type DockerInfo struct {
 	DEPLOY_KEY string `json:"deploy_key" binding:"required"`
 	BRANCH     string `json:"branch"`
@@ -20,55 +25,104 @@ type DockerInfo struct {
 	REPO_NAME  string `json:"repo_name" binding:"required"`
 }
 
-func buildDockerContainer() {
-	// We can pass in a callback here, or just handle the status update
-	// request from this function
-	buildCommand := exec.Command("docker", "build", "--no-cache=True", "--tags='franklin_builder_tmp:tmp'", ".")
-	if err := buildCommand.Run(); err != nil {
-		fmt.Println(os.Stderr, err)
-	}
+// BuildDockerContainer executes a docker build command and assigns it a random tag
+func BuildDockerContainer(com chan string) {
+	// First we will seed the random number generator
+	rand.Seed(time.Now().UnixNano())
+	randomTag := strconv.Itoa(rand.Intn(1000))
+	// TODO: REMOVE TEMP LAYERS
+	exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, ".").Run()
 
-	tearDown := exec.Command("scripts/tear_down_project.sh")
-	if err := tearDown.Run(); err != nil {
-		fmt.Println(os.Stderr, err)
-	}
-
-	os.Remove("tmp/")
+	// Passing along the randomTag associated with the built docker container to the channel 'com'
+	com <- randomTag
 }
 
 func main() {
 	m := martini.Classic()
 	m.Use(render.Renderer())
-	m.Get("/", func() string {
+
+	// Simple 'health' endpoint for AWS load-balancer health checks
+	m.Get("/health", func() string {
 		return "Hello world!"
 	})
+
 	m.Post("/build", binding.Bind(DockerInfo{}), BuildDockerFile)
 	m.Run()
-
 }
 
-func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
-	tmp_dir := "tmp"
+func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) error {
+	var err_return error
 
 	// Create a new Dockerfile template parses template definition
 	docker_tmpl, err := template.ParseFiles("templates/dockerfile.tmplt")
-	HandleErr(err)
+	logging.LogToFile(err)
+	err_return = err
 
-	// Create tmp directory
-	err = os.Mkdir(tmp_dir, 0770)
-	HandleErr(err)
+	err = os.Mkdir(buildDir, 0770)
+	logging.LogToFile(err)
+	err_return = err
 
-	// Create file
-	f, err := os.Create(tmp_dir + "/Dockerfile")
-	HandleErr(err)
+	f, err := os.Create(buildDir + "/Dockerfile")
+	logging.LogToFile(err)
+	err_return = err
 	defer f.Close()
 
 	//Apply the Dockerfile template to the docker info from the request
 	err = docker_tmpl.Execute(f, dockerInfo)
-	HandleErr(err)
+	err_return = err
+	logging.LogToFile(err)
 
-	// Build the docker container.
-	go buildDockerContainer()
+	return err_return
+}
+
+// grabBuiltStaticFiles issues a `docker run` command to the container image
+// we created that will transfer built files to specified location
+func GrabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
+	// Not sure if this is the best way to handle "dynamic strings"
+	mountStringSlice := []string{transferLocation, ":", "/tmp_mount"}
+	mountString := strings.Join(mountStringSlice, "")
+
+	err := os.Mkdir(transferLocation, 0770)
+	logging.LogToFile(err)
+
+	transfer := exec.Command("scripts/transfer_files.sh", mountString, dockerImageID, projectName)
+	res, err := transfer.CombinedOutput()
+	logging.LogToFile(err)
+	logging.LogToFile(string(res))
+}
+
+func Build(buildDir, projectName string) string {
+	c1 := make(chan string)
+	go BuildDockerContainer(c1)
+
+	// Looping until we get notification on the channel c1 that the build has finished
+	for {
+		select {
+		case buildTag := <-c1:
+			logging.LogToFile("Container built...transfering built files...")
+			GrabBuiltStaticFiles(buildTag, projectName, buildDir)
+			return "success"
+		}
+	}
+}
+
+func rsyncProject(buildDir, remoteLoc string) {
+	rsyncCommand := exec.Command("scripts/rsync_project.sh", buildDir, remoteLoc)
+	res, err := rsyncCommand.CombinedOutput()
+	logging.LogToFile(err)
+	logging.LogToFile(string(res))
+}
+
+func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
+	buildLocation := os.Getenv("BUILD_LOCATION")
+	err := GenerateDockerFile(dockerInfo, ".")
+
+	if err != nil {
+		r.JSON(500, map[string]interface{}{"success": false})
+	}
+
+	logging.LogToFile("Dockerfile generated successfully...building container...")
+
+	go Build(buildLocation, dockerInfo.REPO_NAME)
 	r.JSON(200, map[string]interface{}{"success": true})
-
 }
