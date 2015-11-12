@@ -20,7 +20,3 @@
 1. `make run`
 1. Make a POST request to `localhost:5000/build` with a body similar to what is found in build_api/test/sample_data.json
 1. You can run the test suite by running `make test`
-
-## TODO
-
-- Include information about Jinja2 compiling and environment variables
