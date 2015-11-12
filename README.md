@@ -14,38 +14,11 @@
 1. `pip install -r requirements.txt`
 
 ## Running
-1. `cd build-api && python api.py`
-1. Make a POST request to `localhost:5000/build` with a body similar to: 
 
-    ```
-    {
-      "repo_name": "franklin-api",
-      "repo_owner": "istrategylabs",
-      "git_hash": "b6046c5bef74edfc1cbf35f97f62cebdadf6946a",
-      "path": "/home/www/projects/istrategylabs/franklin-api"
-    }
-    ```
-1. A successful response will look like:
-
-    ```
-    { 
-      "building": true, 
-      "error": "", 
-    }
-    ```
-
-1. A failed response will look like:
-
-    ```
-    { 
-      "building": false, 
-      "error": "Please supply all arguments: (repo_name, repo_owner, git_hash, path)" 
-    }
-    ```
-
-1. Note: this application creates a `tmp` dir for doing it's work. You may need
-   to cleanup/delete this manually at times. It should be in the same location
-   as your code.
+1. Set the build_directory environment variable (location where project will build to): `export BUILD_LOCATION=<location>`
+1. `make run`
+1. Make a POST request to `localhost:5000/build` with a body similar to what is found in build_api/test/sample_data.json
+1. You can run the test suite by running `make test`
 
 ## TODO
 
