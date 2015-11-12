@@ -91,7 +91,7 @@ func GrabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
 	logging.LogToFile(string(res))
 }
 
-func Build(buildDir, projectName string) string {
+func Build(buildDir, projectName, remotePath string) string {
 	c1 := make(chan string)
 	go BuildDockerContainer(c1)
 
@@ -101,6 +101,9 @@ func Build(buildDir, projectName string) string {
 		case buildTag := <-c1:
 			logging.LogToFile("Container built...transfering built files...")
 			GrabBuiltStaticFiles(buildTag, projectName, buildDir)
+			if os.Getenv("ENV") != "test" {
+				rsyncProject(buildDir, remotePath)
+			}
 			return "success"
 		}
 	}
@@ -123,6 +126,6 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 
 	logging.LogToFile("Dockerfile generated successfully...building container...")
 
-	go Build(buildLocation, dockerInfo.REPO_NAME)
+	go Build(buildLocation, dockerInfo.REPO_NAME, dockerInfo.PATH)
 	r.JSON(200, map[string]interface{}{"success": true})
 }
