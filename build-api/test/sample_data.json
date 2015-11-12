@@ -1,0 +1,9 @@
+{
+  "deploy_key": "03d77f0d623f0491d6ff5327bb992cbfc9441a0b",
+  "branch": "master",
+  "tag": "",
+  "repo_name": "franklin-test",
+  "repo_owner": "istrategylabs",
+  "git_hash": "7b3af09db495427d067704b5e9290d8b81d682c5",
+  "path": "/tmp"
+}

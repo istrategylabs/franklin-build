@@ -11,11 +11,4 @@ RUN cd {{ .REPO_NAME }} && git checkout {{ .HASH }}
 {{end}}
 
 RUN cd {{ .REPO_NAME }} && npm install
-RUN cd {{ .REPO_NAME }}/client && bower install --allow-root --config.interactive=false
 RUN cd {{ .REPO_NAME }} && npm run build
-
-RUN eval `ssh-agent -s` && \
-    ssh-add /root/.ssh/franklin-static && \
-    ssh-keyscan islstatic.com >> /root/.ssh/known_hosts && \
-    ssh -i /root/.ssh franklin@islstatic.com 'mkdir -p {{ .REMOTE_LOC }}' && \
-    rsync -azIe "ssh -i /root/.ssh" --delete {{ .REPO_NAME }}/client/dist/ franklin@islstatic.com:{{ .REMOTE_LOC }}
