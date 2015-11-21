@@ -19,7 +19,10 @@ func TestHttpWorking(t *testing.T) {
 	m := martini.Classic()
 
 	m.Get("/foo", func() string {
-		return "bar"
+		r := ApiResponse{Status: "OK", Code: 200}
+		res, err := json.Marshal(r)
+		logging.HandleErr(err)
+		return string(res)
 	})
 
 	res := httptest.NewRecorder()
@@ -27,8 +30,12 @@ func TestHttpWorking(t *testing.T) {
 
 	m.ServeHTTP(res, req)
 
-	expect(t, res.Code, http.StatusOK)
-	expect(t, res.Body.String(), `bar`)
+	var parsed ApiResponse
+	err := json.Unmarshal([]byte(res.Body.String()), &parsed)
+	logging.HandleErr(err)
+
+	expect(t, parsed.Code, http.StatusOK)
+	expect(t, parsed.Status, "OK")
 
 }
 
