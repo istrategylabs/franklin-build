@@ -1,8 +1,8 @@
 package main
 
 import (
-	"./logging"
 	"github.com/go-martini/martini"
+	"github.com/istrategylabs/franklin-build/logging"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
 	"math/rand"
@@ -102,7 +102,7 @@ func Build(buildDir, projectName, remotePath string) string {
 			logging.LogToFile("Container built...transfering built files...")
 			GrabBuiltStaticFiles(buildTag, projectName, buildDir)
 			if os.Getenv("ENV") != "test" {
-				rsyncProject(buildDir, remotePath)
+				rsyncProject(buildDir+"/dist/*", remotePath)
 			}
 			return "success"
 		}
