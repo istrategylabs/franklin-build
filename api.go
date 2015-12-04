@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/istrategylabs/franklin-build/logging"
 	"github.com/martini-contrib/binding"
@@ -117,6 +118,7 @@ func rsyncProject(buildDir, remoteLoc string) {
 }
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
+	logging.LogToFile(fmt.Sprintf("Started building %s", dockerInfo.REPO_NAME))
 	buildLocation := os.Getenv("BUILD_LOCATION")
 	err := GenerateDockerFile(dockerInfo, ".")
 
