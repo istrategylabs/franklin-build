@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/istrategylabs/franklin-build/logging"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -24,6 +26,30 @@ type DockerInfo struct {
 	REPO_OWNER string `json:"repo_owner" binding:"required"`
 	PATH       string `json:"path" binding:"required"`
 	REPO_NAME  string `json:"repo_name" binding:"required"`
+	ENV_ID     string `json:"environment_id" binding:"required"`
+}
+
+func makePutRequest(dockerInfo DockerInfo, data string) {
+	url := apiUrl(dockerInfo)
+
+	var jsonStr = []byte(fmt.Sprintf(`{"status":"%s"}`, data))
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonStr))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	logging.LogToFile(err)
+
+	defer resp.Body.Close()
+	logging.LogToFile(resp.Status)
+
+}
+
+func apiUrl(dockerInfo DockerInfo) string {
+	franklinApiUrl := os.Getenv("API_URL")
+	url := franklinApiUrl + "/build/" + dockerInfo.ENV_ID + "/update/"
+	return url
+
 }
 
 // BuildDockerContainer executes a docker build command and assigns it a random tag
@@ -123,11 +149,18 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	err := GenerateDockerFile(dockerInfo, ".")
 
 	if err != nil {
-		r.JSON(500, map[string]interface{}{"success": false})
+		// this line can probably be removed but we need to figure what if anything we should return in responses
+		r.JSON(500, map[string]interface{}{"success": "false"})
+		makePutRequest(dockerInfo, "FAL")
+
 	}
 
 	logging.LogToFile("Dockerfile generated successfully...building container...")
 
 	go Build(buildLocation, dockerInfo.REPO_NAME, dockerInfo.PATH)
-	r.JSON(200, map[string]interface{}{"success": true})
+	// this line can probably be removed but we need to figure what if anything we should return in responses
+	r.JSON(200, map[string]interface{}{"success": "true"})
+	// We are assuming the build is successful for now.
+	makePutRequest(dockerInfo, "SUC")
+
 }
