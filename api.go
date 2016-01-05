@@ -29,9 +29,35 @@ type DockerInfo struct {
 	ENV_ID     string `json:"environment_id" binding:"required"`
 }
 
+type config struct {
+	BUILDLOCATION  string
+	FRANKLINAPIURL string
+	ENV            string
+}
+
+var Config config
+
+// Investigate a better way to do this
+func init() {
+	Config.BUILDLOCATION = os.Getenv("BUILD_LOCATION")
+	if Config.BUILDLOCATION == "" {
+		logging.LogToFile("Missing environment variable BUILD_LOCATION")
+		panic("Missing environment variable BUILD_LOCATION")
+
+	}
+	Config.FRANKLINAPIURL = os.Getenv("API_URL")
+	if Config.FRANKLINAPIURL == "" {
+		logging.LogToFile("Missing environment variable API_URL")
+		panic("Missing environment variable API_URL")
+
+	}
+	Config.ENV = os.Getenv("ENV")
+
+}
+
 func makePutRequest(dockerInfo DockerInfo, data string) {
 
-	if os.Getenv("ENV") == "test" {
+	if Config.ENV == "test" {
 		return
 	}
 
@@ -51,8 +77,7 @@ func makePutRequest(dockerInfo DockerInfo, data string) {
 }
 
 func apiUrl(dockerInfo DockerInfo) string {
-	franklinApiUrl := os.Getenv("API_URL")
-	url := franklinApiUrl + "/build/" + dockerInfo.ENV_ID + "/update/"
+	url := Config.FRANKLINAPIURL + "/build/" + dockerInfo.ENV_ID + "/update/"
 	return url
 
 }
@@ -133,7 +158,7 @@ func Build(buildDir, projectName, remotePath string) string {
 		case buildTag := <-c1:
 			logging.LogToFile("Container built...transfering built files...")
 			GrabBuiltStaticFiles(buildTag, projectName, buildDir)
-			if os.Getenv("ENV") != "test" {
+			if Config.ENV != "test" {
 				rsyncProject(buildDir+"/public/*", remotePath)
 			}
 			return "success"
@@ -150,7 +175,6 @@ func rsyncProject(buildDir, remoteLoc string) {
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	logging.LogToFile(fmt.Sprintf("Started building %s", dockerInfo.REPO_NAME))
-	buildLocation := os.Getenv("BUILD_LOCATION")
 	err := GenerateDockerFile(dockerInfo, ".")
 
 	if err != nil {
@@ -162,7 +186,7 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 
 	logging.LogToFile("Dockerfile generated successfully...building container...")
 
-	go Build(buildLocation, dockerInfo.REPO_NAME, dockerInfo.PATH)
+	go Build(Config.BUILDLOCATION, dockerInfo.REPO_NAME, dockerInfo.PATH)
 	// this line can probably be removed but we need to figure what if anything we should return in responses
 	r.JSON(200, map[string]interface{}{"success": "true"})
 	// We are assuming the build is successful for now.
