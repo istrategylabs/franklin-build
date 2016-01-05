@@ -16,7 +16,7 @@
 ## Running
 
 1. Set the build_directory environment variable (location where project will build to): `export BUILD_LOCATION=<location>`
-1. Set the ENV environment variable (production or test): `export REMOTE_LOCATION=test`
+1. Set the ENV environment variable (production or test): `export ENV=test`
 1. `make run`
 1. Make a POST request to `localhost:5000/build` with a body similar to what is found in test/sample_data.json
 1. You can run the test suite by running `make test`

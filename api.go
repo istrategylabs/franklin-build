@@ -30,6 +30,11 @@ type DockerInfo struct {
 }
 
 func makePutRequest(dockerInfo DockerInfo, data string) {
+
+	if os.Getenv("ENV") == "test" {
+		return
+	}
+
 	url := apiUrl(dockerInfo)
 
 	var jsonStr = []byte(fmt.Sprintf(`{"status":"%s"}`, data))
