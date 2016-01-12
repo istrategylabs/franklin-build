@@ -26,7 +26,7 @@ type DockerInfo struct {
 	REPO_OWNER string `json:"repo_owner" binding:"required"`
 	PATH       string `json:"path" binding:"required"`
 	REPO_NAME  string `json:"repo_name" binding:"required"`
-	ENV_ID     string `json:"environment_id" binding:"required"`
+	ENV_ID     int    `json:"environment_id" binding:"required"`
 }
 
 type config struct {
@@ -77,7 +77,7 @@ func makePutRequest(dockerInfo DockerInfo, data string) {
 }
 
 func apiUrl(dockerInfo DockerInfo) string {
-	url := Config.FRANKLINAPIURL + "/build/" + dockerInfo.ENV_ID + "/update/"
+	url := Config.FRANKLINAPIURL + "/build/" + strconv.Itoa(dockerInfo.ENV_ID) + "/update/"
 	return url
 
 }
