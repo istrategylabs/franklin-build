@@ -32,6 +32,7 @@ type DockerInfo struct {
 type config struct {
 	BUILDLOCATION  string
 	FRANKLINAPIURL string
+	DEPLOYROOTPATH string
 	ENV            string
 }
 
@@ -43,13 +44,16 @@ func init() {
 	if Config.BUILDLOCATION == "" {
 		logging.LogToFile("Missing environment variable BUILD_LOCATION")
 		panic("Missing environment variable BUILD_LOCATION")
-
 	}
 	Config.FRANKLINAPIURL = os.Getenv("API_URL")
 	if Config.FRANKLINAPIURL == "" {
 		logging.LogToFile("Missing environment variable API_URL")
 		panic("Missing environment variable API_URL")
-
+	}
+	Config.DEPLOYROOTPATH = os.Getenv("DEPLOY_ROOT_FOLDER")
+	if Config.DEPLOYROOTPATH == "" {
+		logging.LogToFile("Missing environment variable DEPLOY_ROOT_FOLDER")
+		panic("Missing environment variable DEPLOY_ROOT_FOLDER")
 	}
 	Config.ENV = os.Getenv("ENV")
 
@@ -150,7 +154,7 @@ func GrabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
 	logging.LogToFile(string(res))
 }
 
-func Build(buildDir, projectName, remotePath string) string {
+func Build(buildDir, projectName, projectPath string) string {
 	c1 := make(chan string)
 	go BuildDockerContainer(c1)
 
@@ -161,7 +165,7 @@ func Build(buildDir, projectName, remotePath string) string {
 			logging.LogToFile("Container built...transfering built files...")
 			GrabBuiltStaticFiles(buildTag, projectName, buildDir)
 			if Config.ENV != "test" {
-				rsyncProject(buildDir+"/public/*", remotePath)
+				rsyncProject(buildDir+"/public/*", Config.DEPLOYROOTPATH+projectPath)
 			}
 			return "success"
 		}
