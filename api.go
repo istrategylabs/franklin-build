@@ -88,8 +88,11 @@ func BuildDockerContainer(com chan string) {
 	rand.Seed(time.Now().UnixNano())
 	randomTag := strconv.Itoa(rand.Intn(1000))
 	// TODO: REMOVE TEMP LAYERS
-	exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, ".").Run()
-
+	out, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, ".").Output()
+	if err != nil {
+		logging.LogToFile("There was an error building the docker container")
+	}
+	logging.LogToFile(string(out))
 	// Passing along the randomTag associated with the built docker container to the channel 'com'
 	com <- randomTag
 }
@@ -138,7 +141,6 @@ func GrabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
 	// Not sure if this is the best way to handle "dynamic strings"
 	mountStringSlice := []string{transferLocation, ":", "/tmp_mount"}
 	mountString := strings.Join(mountStringSlice, "")
-
 	err := os.Mkdir(transferLocation, 0770)
 	logging.LogToFile(err)
 
