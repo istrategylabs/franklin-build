@@ -87,16 +87,16 @@ func apiUrl(dockerInfo DockerInfo) string {
 }
 
 // BuildDockerContainer executes a docker build command and assigns it a random tag
-func BuildDockerContainer(com chan string) {
+func BuildDockerContainer(com, quit chan string) {
 	// First we will seed the random number generator
 	rand.Seed(time.Now().UnixNano())
 	randomTag := strconv.Itoa(rand.Intn(1000))
 	// TODO: REMOVE TEMP LAYERS
 	out, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, ".").Output()
-	if err != nil {
-		logging.LogToFile("There was an error building the docker container")
-	}
 	logging.LogToFile(string(out))
+	if err != nil {
+		quit <- "fail"
+	}
 	// Passing along the randomTag associated with the built docker container to the channel 'com'
 	com <- randomTag
 }
@@ -154,19 +154,26 @@ func GrabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
 	logging.LogToFile(string(res))
 }
 
-func Build(buildDir, projectName, projectPath string) string {
+func Build(buildDir string, dockerInfo DockerInfo) string {
 	c1 := make(chan string)
-	go BuildDockerContainer(c1)
+	quit := make(chan string)
+	go BuildDockerContainer(c1, quit)
+	makePutRequest(dockerInfo, "BLD")
 
 	// Looping until we get notification on the channel c1 that the build has finished
 	for {
 		select {
+		case <-quit:
+			logging.LogToFile("There was an error building the docker container")
+			makePutRequest(dockerInfo, "FAL")
+			return "fail"
 		case buildTag := <-c1:
 			logging.LogToFile("Container built...transfering built files...")
-			GrabBuiltStaticFiles(buildTag, projectName, buildDir)
+			GrabBuiltStaticFiles(buildTag, dockerInfo.REPO_NAME, buildDir)
 			if Config.ENV != "test" {
-				rsyncProject(buildDir+"/public/*", Config.DEPLOYROOTPATH+projectPath)
+				rsyncProject(buildDir+"/public/*", Config.DEPLOYROOTPATH+dockerInfo.PATH)
 			}
+			makePutRequest(dockerInfo, "SUC")
 			return "success"
 		}
 	}
@@ -192,10 +199,8 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 
 	logging.LogToFile("Dockerfile generated successfully...building container...")
 
-	go Build(Config.BUILDLOCATION, dockerInfo.REPO_NAME, dockerInfo.PATH)
+	go Build(Config.BUILDLOCATION, dockerInfo)
 	// this line can probably be removed but we need to figure what if anything we should return in responses
 	r.JSON(200, map[string]interface{}{"success": "true"})
-	// We are assuming the build is successful for now.
-	makePutRequest(dockerInfo, "SUC")
 
 }
