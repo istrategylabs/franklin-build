@@ -134,7 +134,7 @@ func Build(buildDir, projectName, remotePath string) string {
 			logging.LogToFile("Container built...transfering built files...")
 			GrabBuiltStaticFiles(buildTag, projectName, buildDir)
 			if os.Getenv("ENV") != "test" {
-				rsyncProject(buildDir+"/public/*", remotePath)
+				rsyncProject(buildDir+"/public/*", os.Getenv("STATIC_ROOT")+remotePath)
 			}
 			return "success"
 		}
