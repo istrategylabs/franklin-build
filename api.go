@@ -7,6 +7,7 @@ import (
 	"github.com/istrategylabs/franklin-build/logging"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
@@ -122,10 +123,6 @@ func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) error {
 	logging.LogToFile(err)
 	err_return = err
 
-	err = os.Mkdir(buildDir, 0770)
-	logging.LogToFile(err)
-	err_return = err
-
 	f, err := os.Create(buildDir + "/Dockerfile")
 	logging.LogToFile(err)
 	err_return = err
@@ -176,6 +173,9 @@ func Build(buildDir string, dockerInfo DockerInfo) string {
 			makePutRequest(dockerInfo, "SUC")
 			return "success"
 		}
+		// Remove ssh keys after we are done
+		err := os.Remove("tmpkey/id_rsa")
+		logging.LogToFile(err)
 	}
 }
 
@@ -186,9 +186,28 @@ func rsyncProject(buildDir, remoteLoc string) {
 	logging.LogToFile(string(res))
 }
 
+func createTempSSHKey(dockerInfo DockerInfo, buildDir string) error {
+	var err_return error
+
+	err := os.Mkdir("tmpkey", 0770)
+	logging.LogToFile(err)
+	err_return = err
+
+	d1 := []byte(dockerInfo.DEPLOY_KEY)
+	err = ioutil.WriteFile("tmpkey/id_rsa", d1, 0644)
+	logging.LogToFile(err)
+	err_return = err
+
+	return err_return
+}
+
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	logging.LogToFile(fmt.Sprintf("Started building %s", dockerInfo.REPO_NAME))
-	err := GenerateDockerFile(dockerInfo, ".")
+
+	err := createTempSSHKey(dockerInfo, ".")
+	logging.LogToFile(err)
+	err = GenerateDockerFile(dockerInfo, ".")
+	logging.LogToFile(err)
 
 	if err != nil {
 		// this line can probably be removed but we need to figure what if anything we should return in responses
@@ -200,6 +219,7 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	logging.LogToFile("Dockerfile generated successfully...building container...")
 
 	go Build(Config.BUILDLOCATION, dockerInfo)
+
 	// this line can probably be removed but we need to figure what if anything we should return in responses
 	r.JSON(200, map[string]interface{}{"success": "true"})
 
