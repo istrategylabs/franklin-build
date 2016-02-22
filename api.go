@@ -20,21 +20,21 @@ import (
 
 // A DockerInfo represents the structure of data coming from Franklin-api
 type DockerInfo struct {
-	DEPLOY_KEY string `json:"deploy_key" binding:"required"`
-	BRANCH     string `json:"branch"`
-	TAG        string `json:"tag"`
-	HASH       string `json:"git_hash" binding:"required"`
-	REPO_OWNER string `json:"repo_owner" binding:"required"`
-	PATH       string `json:"path" binding:"required"`
-	REPO_NAME  string `json:"repo_name" binding:"required"`
-	ENV_ID     int    `json:"environment_id" binding:"required"`
+	DEPLOY_KEY string `json:"deploy_key" binding:"required"`     // SSH Key used to clone private repos
+	BRANCH     string `json:"branch"`                            // Branch to deploy
+	TAG        string `json:"tag"`                               // Tag to deploy
+	HASH       string `json:"git_hash" binding:"required"`       // Commit hash
+	REPO_OWNER string `json:"repo_owner" binding:"required"`     // ID of Github repo owner
+	PATH       string `json:"path" binding:"required"`           // "Qualified" githubOrganizationID/commitHash
+	REPO_NAME  string `json:"repo_name" binding:"required"`      // Name of Github repository
+	ENV_ID     int    `json:"environment_id" binding:"required"` // Environment ID from API (staging, production etc)
 }
 
 type config struct {
-	BUILDLOCATION  string
-	FRANKLINAPIURL string
-	DEPLOYROOTPATH string
-	ENV            string
+	BUILDLOCATION  string // Location of built files on build server
+	FRANKLINAPIURL string // URL of Franklin-API
+	DEPLOYROOTPATH string // The root of where we want to rsync files to
+	ENV            string // Environment of running Franklin-build instance
 }
 
 var Config config
@@ -88,12 +88,12 @@ func apiUrl(dockerInfo DockerInfo) string {
 }
 
 // BuildDockerContainer executes a docker build command and assigns it a random tag
-func BuildDockerContainer(com, quit chan string) {
+func BuildDockerContainer(com, quit chan string, buildServerPath string) {
 	// First we will seed the random number generator
 	rand.Seed(time.Now().UnixNano())
 	randomTag := strconv.Itoa(rand.Intn(1000))
 	// TODO: REMOVE TEMP LAYERS
-	out, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, ".").Output()
+	out, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, buildServerPath).Output()
 	logging.LogToFile(string(out))
 	if err != nil {
 		quit <- "fail"
@@ -115,7 +115,7 @@ func main() {
 	m.Run()
 }
 
-func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) error {
+func GenerateDockerFile(dockerInfo DockerInfo, buildServerPath string) error {
 	var err_return error
 
 	// Create a new Dockerfile template parses template definition
@@ -123,7 +123,7 @@ func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) error {
 	logging.LogToFile(err)
 	err_return = err
 
-	f, err := os.Create(buildDir + "/Dockerfile")
+	f, err := os.Create(buildServerPath + "/Dockerfile")
 	logging.LogToFile(err)
 	err_return = err
 	defer f.Close()
@@ -138,12 +138,10 @@ func GenerateDockerFile(dockerInfo DockerInfo, buildDir string) error {
 
 // grabBuiltStaticFiles issues a `docker run` command to the container image
 // we created that will transfer built files to specified location
-func GrabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
+func GrabBuiltStaticFiles(dockerImageID, projectName, buildServerPath string) {
 	// Not sure if this is the best way to handle "dynamic strings"
-	mountStringSlice := []string{transferLocation, ":", "/tmp_mount"}
+	mountStringSlice := []string{buildServerPath, ":", "/tmp_mount"}
 	mountString := strings.Join(mountStringSlice, "")
-	err := os.Mkdir(transferLocation, 0770)
-	logging.LogToFile(err)
 
 	transfer := exec.Command("scripts/transfer_files.sh", mountString, dockerImageID, projectName)
 	res, err := transfer.CombinedOutput()
@@ -151,10 +149,10 @@ func GrabBuiltStaticFiles(dockerImageID, projectName, transferLocation string) {
 	logging.LogToFile(string(res))
 }
 
-func Build(buildDir string, dockerInfo DockerInfo) string {
+func Build(buildServerPath string, dockerInfo DockerInfo) string {
 	c1 := make(chan string)
 	quit := make(chan string)
-	go BuildDockerContainer(c1, quit)
+	go BuildDockerContainer(c1, quit, buildServerPath)
 	makePutRequest(dockerInfo, "BLD")
 
 	// Looping until we get notification on the channel c1 that the build has finished
@@ -166,35 +164,28 @@ func Build(buildDir string, dockerInfo DockerInfo) string {
 			return "fail"
 		case buildTag := <-c1:
 			logging.LogToFile("Container built...transfering built files...")
-			GrabBuiltStaticFiles(buildTag, dockerInfo.REPO_NAME, buildDir)
+			GrabBuiltStaticFiles(buildTag, dockerInfo.REPO_NAME, buildServerPath)
 			if Config.ENV != "test" {
-				rsyncProject(buildDir+"/public/*", Config.DEPLOYROOTPATH+dockerInfo.PATH)
+				rsyncProject(buildServerPath+"/public/*", Config.DEPLOYROOTPATH+dockerInfo.PATH)
 			}
 			makePutRequest(dockerInfo, "SUC")
 			return "success"
 		}
-		// Remove ssh keys after we are done
-		err := os.Remove("tmpkey/id_rsa")
-		logging.LogToFile(err)
 	}
 }
 
-func rsyncProject(buildDir, remoteLoc string) {
-	rsyncCommand := exec.Command("scripts/rsync_project.sh", buildDir, remoteLoc)
+func rsyncProject(buildServerPath, remoteLoc string) {
+	rsyncCommand := exec.Command("scripts/rsync_project.sh", buildServerPath, remoteLoc)
 	res, err := rsyncCommand.CombinedOutput()
 	logging.LogToFile(err)
 	logging.LogToFile(string(res))
 }
 
-func createTempSSHKey(dockerInfo DockerInfo, buildDir string) error {
+func createTempSSHKey(dockerInfo DockerInfo, buildServerPath string) error {
 	var err_return error
 
-	err := os.Mkdir("tmpkey", 0770)
-	logging.LogToFile(err)
-	err_return = err
-
 	d1 := []byte(dockerInfo.DEPLOY_KEY)
-	err = ioutil.WriteFile("tmpkey/id_rsa", d1, 0644)
+	err := ioutil.WriteFile(buildServerPath+"/id_rsa", d1, 0644)
 	logging.LogToFile(err)
 	err_return = err
 
@@ -204,9 +195,15 @@ func createTempSSHKey(dockerInfo DockerInfo, buildDir string) error {
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	logging.LogToFile(fmt.Sprintf("Started building %s", dockerInfo.REPO_NAME))
 
-	err := createTempSSHKey(dockerInfo, ".")
+	// Let's hold a reference to the project's path to build on
+	buildServerPath := Config.BUILDLOCATION + "/" + dockerInfo.PATH
+
+	err := os.MkdirAll(buildServerPath, 0770)
 	logging.LogToFile(err)
-	err = GenerateDockerFile(dockerInfo, ".")
+
+	err = createTempSSHKey(dockerInfo, buildServerPath)
+	logging.LogToFile(err)
+	err = GenerateDockerFile(dockerInfo, buildServerPath)
 	logging.LogToFile(err)
 
 	if err != nil {
@@ -218,7 +215,8 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 
 	logging.LogToFile("Dockerfile generated successfully...building container...")
 
-	go Build(Config.BUILDLOCATION, dockerInfo)
+	// Need to pass in more informabout about the location of
+	go Build(buildServerPath, dockerInfo)
 
 	// this line can probably be removed but we need to figure what if anything we should return in responses
 	r.JSON(200, map[string]interface{}{"success": "true"})
