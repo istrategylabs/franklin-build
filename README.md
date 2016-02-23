@@ -2,8 +2,12 @@
 
 ![franklin](https://s-media-cache-ak0.pinimg.com/236x/d9/f9/97/d9f997346e9e651f152ad98f3ffde330.jpg)
 
-**Please use [gofmt](https://golang.org/cmd/gofmt/) before committing any code**
+## Contributing
 
+Two things to note about contributing to this project:
+
+1. Follow common Go best-practices as presented in the fantastic [Effective Go](https://golang.org/doc/effective_go.html) document.
+1. Use [gofmt](https://golang.org/cmd/gofmt/) before committing any code
 
 
 ## Getting Started
@@ -22,9 +26,9 @@ This will install all packages and dependencies
 To install and compile manually use the following steps:
 
 1. `git clone https://github.com/istrategylabs/franklin-build/` 
-2. `go get`
-3. `cd franklin-build`
-4. `make build`
+1. `go get`
+1. `cd franklin-build`
+1. `make build`
 
 ## Environment Variables
 The following environment variables will need to be set:
@@ -32,7 +36,7 @@ The following environment variables will need to be set:
 	BUILD_LOCATION
 	API_URL
 	ENV
-  DEPLOY_ROOT_FOLDER
+        DEPLOY_ROOT_FOLDER
 
 1. Set the BUILD_LOCATION environment variable (location where project will build to): `export BUILD_LOCATION=<location>`
 2. Set the ENV environment variable (production or test): `export ENV=test`
