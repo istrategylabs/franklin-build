@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/apex/log"
+	"github.com/apex/log/handlers/cli"
 	"github.com/go-martini/martini"
-	"github.com/istrategylabs/franklin-build/logging"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
 	"io/ioutil"
@@ -41,19 +42,21 @@ var Config config
 
 // Investigate a better way to do this
 func init() {
+	log.SetHandler(cli.New(os.Stdout))
+
 	Config.BUILDLOCATION = os.Getenv("BUILD_LOCATION")
 	if Config.BUILDLOCATION == "" {
-		logging.LogToFile("Missing environment variable BUILD_LOCATION")
+		log.Warn("Missing environment variable BUILD_LOCATION")
 		panic("Missing environment variable BUILD_LOCATION")
 	}
 	Config.FRANKLINAPIURL = os.Getenv("API_URL")
 	if Config.FRANKLINAPIURL == "" {
-		logging.LogToFile("Missing environment variable API_URL")
+		log.Warn("Missing environment variable API_URL")
 		panic("Missing environment variable API_URL")
 	}
 	Config.DEPLOYROOTPATH = os.Getenv("DEPLOY_ROOT_FOLDER")
 	if Config.DEPLOYROOTPATH == "" {
-		logging.LogToFile("Missing environment variable DEPLOY_ROOT_FOLDER")
+		log.Warn("Missing environment variable DEPLOY_ROOT_FOLDER")
 		panic("Missing environment variable DEPLOY_ROOT_FOLDER")
 	}
 	Config.ENV = os.Getenv("ENV")
@@ -61,6 +64,11 @@ func init() {
 }
 
 func makePutRequest(dockerInfo DockerInfo, data string) {
+
+	ctx := log.WithFields(log.Fields{
+		"repo": dockerInfo.REPO_NAME,
+		"env":  dockerInfo.ENV_ID,
+	})
 
 	if Config.ENV == "test" {
 		return
@@ -74,10 +82,10 @@ func makePutRequest(dockerInfo DockerInfo, data string) {
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	logging.LogToFile(err)
+	ctx.WithError(err)
 
 	defer resp.Body.Close()
-	logging.LogToFile(resp.Status)
+	ctx.Warn(resp.Status)
 
 }
 
@@ -88,13 +96,13 @@ func apiUrl(dockerInfo DockerInfo) string {
 }
 
 // BuildDockerContainer executes a docker build command and assigns it a random tag
-func BuildDockerContainer(com, quit chan string, buildServerPath string) {
+func BuildDockerContainer(ctx log.Interface, com, quit chan string, buildServerPath string) {
 	// First we will seed the random number generator
 	rand.Seed(time.Now().UnixNano())
 	randomTag := strconv.Itoa(rand.Intn(1000))
 	// TODO: REMOVE TEMP LAYERS
 	out, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, buildServerPath).Output()
-	logging.LogToFile(string(out))
+	ctx.Info(string(out))
 	if err != nil {
 		quit <- "fail"
 	}
@@ -117,56 +125,73 @@ func main() {
 
 func GenerateDockerFile(dockerInfo DockerInfo, buildServerPath string) error {
 	var err_return error
+	ctx := log.WithFields(log.Fields{
+		"repo": dockerInfo.REPO_NAME,
+		"env":  dockerInfo.ENV_ID,
+	})
 
 	// Create a new Dockerfile template parses template definition
 	docker_tmpl, err := template.ParseFiles("templates/dockerfile.tmplt")
-	logging.LogToFile(err)
+	if err != nil {
+		ctx.WithError(err)
+	}
+
 	err_return = err
 
 	f, err := os.Create(buildServerPath + "/Dockerfile")
-	logging.LogToFile(err)
+	if err != nil {
+		ctx.WithError(err)
+	}
 	err_return = err
 	defer f.Close()
 
 	//Apply the Dockerfile template to the docker info from the request
 	err = docker_tmpl.Execute(f, dockerInfo)
 	err_return = err
-	logging.LogToFile(err)
+	if err != nil {
+		ctx.WithError(err)
+	}
 
 	return err_return
 }
 
 // grabBuiltStaticFiles issues a `docker run` command to the container image
 // we created that will transfer built files to specified location
-func GrabBuiltStaticFiles(dockerImageID, projectName, buildServerPath string) {
+func GrabBuiltStaticFiles(ctx log.Interface, dockerImageID, projectName, buildServerPath string) {
 	// Not sure if this is the best way to handle "dynamic strings"
 	mountStringSlice := []string{buildServerPath, ":", "/tmp_mount"}
 	mountString := strings.Join(mountStringSlice, "")
 
 	transfer := exec.Command("scripts/transfer_files.sh", mountString, dockerImageID, projectName)
 	res, err := transfer.CombinedOutput()
-	logging.LogToFile(err)
-	logging.LogToFile(string(res))
+	if err != nil {
+		ctx.WithError(err)
+	}
+	ctx.Warn(string(res))
 }
 
 func Build(buildServerPath string, dockerInfo DockerInfo) string {
+	ctx := log.WithFields(log.Fields{
+		"repo": dockerInfo.REPO_NAME,
+		"env":  dockerInfo.ENV_ID,
+	})
 	c1 := make(chan string)
 	quit := make(chan string)
-	go BuildDockerContainer(c1, quit, buildServerPath)
+	go BuildDockerContainer(ctx, c1, quit, buildServerPath)
 	makePutRequest(dockerInfo, "BLD")
 
 	// Looping until we get notification on the channel c1 that the build has finished
 	for {
 		select {
 		case <-quit:
-			logging.LogToFile("There was an error building the docker container")
+			ctx.Info("There was an error building the docker container")
 			makePutRequest(dockerInfo, "FAL")
 			return "fail"
 		case buildTag := <-c1:
-			logging.LogToFile("Container built...transfering built files...")
-			GrabBuiltStaticFiles(buildTag, dockerInfo.REPO_NAME, buildServerPath)
+			ctx.Info("Container built...transfering built files...")
+			GrabBuiltStaticFiles(ctx, buildTag, dockerInfo.REPO_NAME, buildServerPath)
 			if Config.ENV != "test" {
-				rsyncProject(buildServerPath+"/public/*", Config.DEPLOYROOTPATH+dockerInfo.PATH)
+				rsyncProject(ctx, buildServerPath+"/public/*", Config.DEPLOYROOTPATH+dockerInfo.PATH)
 			}
 			makePutRequest(dockerInfo, "SUC")
 			return "success"
@@ -174,46 +199,56 @@ func Build(buildServerPath string, dockerInfo DockerInfo) string {
 	}
 }
 
-func rsyncProject(buildServerPath, remoteLoc string) {
+func rsyncProject(ctx log.Interface, buildServerPath, remoteLoc string) {
 	rsyncCommand := exec.Command("scripts/rsync_project.sh", buildServerPath, remoteLoc)
 	res, err := rsyncCommand.CombinedOutput()
-	logging.LogToFile(err)
-	logging.LogToFile(string(res))
+	if err != nil {
+		ctx.WithError(err)
+	}
+	ctx.Info(string(res))
 }
 
 func createTempSSHKey(dockerInfo DockerInfo, buildServerPath string) error {
 	var err_return error
+	ctx := log.WithFields(log.Fields{
+		"repo": dockerInfo.REPO_NAME,
+		"env":  dockerInfo.ENV_ID,
+	})
 
 	d1 := []byte(dockerInfo.DEPLOY_KEY)
 	err := ioutil.WriteFile(buildServerPath+"/id_rsa", d1, 0644)
-	logging.LogToFile(err)
+	if err != nil {
+		ctx.WithError(err)
+	}
 	err_return = err
 
 	return err_return
 }
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
-	logging.LogToFile(fmt.Sprintf("Started building %s", dockerInfo.REPO_NAME))
+	log.SetHandler(cli.New(os.Stdout))
+
+	ctx := log.WithFields(log.Fields{
+		"repo": dockerInfo.REPO_NAME,
+		"env":  dockerInfo.ENV_ID,
+	})
+	ctx.Info(fmt.Sprintf("Started building %s", dockerInfo.REPO_NAME))
 
 	// Let's hold a reference to the project's path to build on
 	buildServerPath := Config.BUILDLOCATION + "/" + dockerInfo.PATH
 
 	err := os.MkdirAll(buildServerPath, 0770)
-	logging.LogToFile(err)
-
 	err = createTempSSHKey(dockerInfo, buildServerPath)
-	logging.LogToFile(err)
 	err = GenerateDockerFile(dockerInfo, buildServerPath)
-	logging.LogToFile(err)
 
 	if err != nil {
+		ctx.WithError(err)
 		// this line can probably be removed but we need to figure what if anything we should return in responses
 		r.JSON(500, map[string]interface{}{"success": "false"})
 		makePutRequest(dockerInfo, "FAL")
 
 	}
-
-	logging.LogToFile("Dockerfile generated successfully...building container...")
+	ctx.Info("Dockerfile generated successfully...building container...")
 
 	// Need to pass in more informabout about the location of
 	go Build(buildServerPath, dockerInfo)
