@@ -1,10 +1,11 @@
 package main
 
 import (
-	"./logging"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/apex/log"
+	"github.com/apex/log/handlers/cli"
 	"github.com/go-martini/martini"
 	"io/ioutil"
 	"net/http"
@@ -40,17 +41,21 @@ func expect(t *testing.T, a interface{}, b interface{}) {
 }
 
 func TestDockerfileCreation(t *testing.T) {
+	log.SetHandler(cli.New(os.Stdout))
 	// The 'expected' hash
 	expected_hash := "033429aed5b9104f5c8d0a15ed2b9a043ce93a70"
 
 	// First we will read the sample json file
 	dat, err := ioutil.ReadFile("test/sample_data.json")
-	logging.HandleErr(err)
-
+	if err != nil {
+		log.WithError(err)
+	}
 	// We read the sample json data and create a new DockerInfo struct
 	var parsed_data DockerInfo
 	err = json.Unmarshal(dat, &parsed_data)
-	logging.HandleErr(err)
+	if err != nil {
+		log.WithError(err)
+	}
 
 	// Pass the DockerInfo struct into the GenerateDockerFile function
 	GenerateDockerFile(parsed_data, "test")
@@ -58,7 +63,9 @@ func TestDockerfileCreation(t *testing.T) {
 
 	// Generate a sha1 hash of the generated Dockerfile and compare
 	f, err := ioutil.ReadFile("test/Dockerfile")
-	logging.HandleErr(err)
+	if err != nil {
+		log.WithError(err)
+	}
 
 	generated_hash := sha1.New()
 	generated_hash.Write([]byte(f))
