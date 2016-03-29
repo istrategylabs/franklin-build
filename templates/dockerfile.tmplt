@@ -17,5 +17,5 @@ RUN cd {{ .REPO_NAME }} && git checkout {{ .HASH }}
 
 ENV NPM_CONFIG_LOGLEVEL warn
 
-RUN cd {{ .REPO_NAME }} && npm install
+RUN cd {{ .REPO_NAME }} && npm install --production
 RUN cd {{ .REPO_NAME }} && npm run build
