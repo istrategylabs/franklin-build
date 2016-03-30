@@ -34,13 +34,11 @@ To install and compile manually use the following steps:
 The following environment variables will need to be set:
 
 	BUILD_LOCATION
-	API_URL
 	ENV
-        DEPLOY_ROOT_FOLDER
+	DEPLOY_ROOT_FOLDER
 
 1. Set the BUILD_LOCATION environment variable (location where project will build to): `export BUILD_LOCATION=<location>`
 2. Set the ENV environment variable (production or test): `export ENV=test`
-3. Set the API_URL variable to Franklin API `export API_URL=https://example.com`
 4. Set the DEPLOY_ROOT_FOLDER variable to the folder where successfully build projects will be rsync'd to. Nginx in `franklin` will have the same exact setting. `export DEPLOY_ROOT_FOLDER=/var/www/franklin/`
 
 ## Running
