@@ -45,3 +45,7 @@ The following environment variables will need to be set:
 1. `make run`
 1. Make a POST request to `localhost:3000/build` with a body similar to what is found in test/sample_data.json
 1. You can run the test suite by running `make test`
+
+## Deployment
+
+All you need to do to deploy (if your keys are on the server) is run `fab {{ environment }} deploy`
