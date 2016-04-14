@@ -4,3 +4,4 @@ venv
 app.log
 Dockerfile
 tmpkey/*
+*.pyc
