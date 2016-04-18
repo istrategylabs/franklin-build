@@ -31,10 +31,18 @@ def restart_service():
 
 @task
 @roles('build')
+def get_go_deps():
+    """ Gets all the dependencies needed to run the software. """
+    require('roledefs', provided_by=['production'])
+    run("cd %(base)s; go get" % env)
+
+@task
+@roles('build')
 def deploy():
     """ Deploys builder """
     require('roledefs', provided_by=['production'])
     pull()
+    get_go_deps()
     restart_service()
 
 @task
