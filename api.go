@@ -42,6 +42,7 @@ var Config config
 // Investigate a better way to do this
 func init() {
 	log.SetHandler(cli.New(os.Stdout))
+	log.SetLevel(log.DebugLevel)
 
 	Config.BUILDLOCATION = os.Getenv("BUILD_LOCATION")
 	if Config.BUILDLOCATION == "" {
