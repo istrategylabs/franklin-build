@@ -92,6 +92,7 @@ func BuildDockerContainer(ctx log.Interface, com, quit chan string, buildServerP
 	out, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, buildServerPath).Output()
 	ctx.Info(string(out))
 	if err != nil {
+		ctx.WithError(err)
 		quit <- "fail"
 	}
 	// Passing along the randomTag associated with the built docker container to the channel 'com'
@@ -172,6 +173,7 @@ func Build(buildServerPath string, dockerInfo DockerInfo) string {
 		select {
 		case <-quit:
 			ctx.Info("There was an error building the docker container")
+			ctx.Errorf("Error: Error building docker container")
 			updateApiStatus(dockerInfo, "failed")
 			return "fail"
 		case buildTag := <-c1:
