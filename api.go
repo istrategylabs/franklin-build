@@ -224,7 +224,7 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	})
 	ctx.Info(fmt.Sprintf("Started building %s", dockerInfo.REPO_NAME))
 	fmt.Print("Able to log via Print")
-	os.Stdout.Write("Able to log via Stdout")
+	os.Stdout.WriteString("Able to log via Stdout")
 	os.Stderr.WriteString("Able to log via Stderr")
 	fmt.Fprintf(os.Stderr, "Able to log via Fprintf")
 
