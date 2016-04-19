@@ -102,11 +102,10 @@ func main() {
 	m := martini.Classic()
 	m.Use(render.Renderer())
 
-	// Simple 'health' endpoint for AWS load-balancer health checks
-	m.Get("/health", func() string {
-		return "Hello world!"
-	})
+	// Simple 'health' endpoint for AWS load-balancer health checks and others
+	m.Get("/health", SystemHealth)
 
+	// Main processing endpoint
 	m.Post("/build", binding.Bind(DockerInfo{}), BuildDockerFile)
 	m.Run()
 }
@@ -241,4 +240,8 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	go Build(buildServerPath, dockerInfo)
 
 	r.JSON(201, nil)
+}
+
+func SystemHealth(p martini.Params, r render.Render) {
+	r.JSON(200, map[string]interface{}{"status": "good"})
 }
