@@ -174,7 +174,6 @@ func Build(buildServerPath string, dockerInfo DockerInfo) string {
 		select {
 		case <-quit:
 			ctx.Info("There was an error building the docker container")
-			ctx.Errorf("Error: Error building docker container")
 			updateApiStatus(dockerInfo, "failed")
 			return "fail"
 		case buildTag := <-c1:
@@ -223,10 +222,6 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 		"env":  dockerInfo.ENVIRONMENT,
 	})
 	ctx.Info(fmt.Sprintf("Started building %s", dockerInfo.REPO_NAME))
-	fmt.Print("Able to log via Print")
-	os.Stdout.WriteString("Able to log via Stdout")
-	os.Stderr.WriteString("Able to log via Stderr")
-	fmt.Fprintf(os.Stderr, "Able to log via Fprintf")
 
 	// Let's hold a reference to the project's path to build on
 	buildServerPath := Config.BUILDLOCATION + "/" + dockerInfo.PATH
