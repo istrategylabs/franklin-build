@@ -58,13 +58,11 @@ func init() {
 
 }
 
-func updateApiStatus(dockerInfo DockerInfo, data string) {
+func logError(ctx log.Interface, err error, function string, msg string) {
+	ctx.WithField("func", function).WithError(err).Error(msg)
+}
 
-	ctx := log.WithFields(log.Fields{
-		"repo": dockerInfo.REPO_NAME,
-		"env":  dockerInfo.ENVIRONMENT,
-	})
-
+func updateApiStatus(ctx log.Interface, dockerInfo DockerInfo, data string) {
 	if Config.ENV == "test" {
 		return
 	}
@@ -77,7 +75,7 @@ func updateApiStatus(dockerInfo DockerInfo, data string) {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		ctx.WithError(err)
+		logError(ctx, err, "updateApiStatus", "Failed API callback")
 	}
 
 	defer resp.Body.Close()
@@ -91,9 +89,12 @@ func BuildDockerContainer(ctx log.Interface, com, quit chan string, buildServerP
 	randomTag := strconv.Itoa(rand.Intn(1000))
 	// TODO: REMOVE TEMP LAYERS
 	out, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, buildServerPath).Output()
-	ctx.Info(string(out))
+
+	if string(out) != "" {
+		ctx.Info(string(out))
+	}
 	if err != nil {
-		ctx.WithError(err)
+		logError(ctx, err, "BuildDockerContainer", "docker build failed")
 		quit <- "fail"
 	}
 	// Passing along the randomTag associated with the built docker container to the channel 'com'
@@ -112,24 +113,20 @@ func main() {
 	m.Run()
 }
 
-func GenerateDockerFile(dockerInfo DockerInfo, buildServerPath string) error {
+func GenerateDockerFile(ctx log.Interface, dockerInfo DockerInfo, buildServerPath string) error {
 	var err_return error
-	ctx := log.WithFields(log.Fields{
-		"repo": dockerInfo.REPO_NAME,
-		"env":  dockerInfo.ENVIRONMENT,
-	})
 
 	// Create a new Dockerfile template parses template definition
 	docker_tmpl, err := template.ParseFiles("templates/dockerfile.tmplt")
 	if err != nil {
-		ctx.WithError(err)
+		logError(ctx, err, "GenerateDockerFile", "ingest Docker template error")
 	}
 
 	err_return = err
 
 	f, err := os.Create(buildServerPath + "/Dockerfile")
 	if err != nil {
-		ctx.WithError(err)
+		logError(ctx, err, "GenerateDockerFile", "Create Dockerfile error")
 	}
 	err_return = err
 	defer f.Close()
@@ -138,7 +135,7 @@ func GenerateDockerFile(dockerInfo DockerInfo, buildServerPath string) error {
 	err = docker_tmpl.Execute(f, dockerInfo)
 	err_return = err
 	if err != nil {
-		ctx.WithError(err)
+		logError(ctx, err, "GenerateDockerFile", "map info to docker template fail")
 	}
 
 	return err_return
@@ -154,27 +151,23 @@ func GrabBuiltStaticFiles(ctx log.Interface, dockerImageID, projectName, buildSe
 	transfer := exec.Command("scripts/transfer_files.sh", mountString, dockerImageID, projectName)
 	res, err := transfer.CombinedOutput()
 	if err != nil {
-		ctx.WithError(err)
+		logError(ctx, err, "GrabBuiltStatucFiles", "transfer script failure")
 	}
 	ctx.Warn(string(res))
 }
 
-func Build(buildServerPath string, dockerInfo DockerInfo) string {
-	ctx := log.WithFields(log.Fields{
-		"repo": dockerInfo.REPO_NAME,
-		"env":  dockerInfo.ENVIRONMENT,
-	})
+func Build(ctx log.Interface, buildServerPath string, dockerInfo DockerInfo) string {
 	c1 := make(chan string)
 	quit := make(chan string)
 	go BuildDockerContainer(ctx, c1, quit, buildServerPath)
-	updateApiStatus(dockerInfo, "building")
+	updateApiStatus(ctx, dockerInfo, "building")
 
 	// Looping until we get notification on the channel c1 that the build has finished
 	for {
 		select {
 		case <-quit:
 			ctx.Info("There was an error building the docker container")
-			updateApiStatus(dockerInfo, "failed")
+			updateApiStatus(ctx, dockerInfo, "failed")
 			return "fail"
 		case buildTag := <-c1:
 			ctx.Info("Container built...transfering built files...")
@@ -182,7 +175,7 @@ func Build(buildServerPath string, dockerInfo DockerInfo) string {
 			if Config.ENV != "test" {
 				rsyncProject(ctx, buildServerPath+"/public/*", Config.DEPLOYROOTPATH+dockerInfo.PATH)
 			}
-			updateApiStatus(dockerInfo, "success")
+			updateApiStatus(ctx, dockerInfo, "success")
 			return "success"
 		}
 	}
@@ -192,22 +185,18 @@ func rsyncProject(ctx log.Interface, buildServerPath, remoteLoc string) {
 	rsyncCommand := exec.Command("scripts/rsync_project.sh", buildServerPath, remoteLoc)
 	res, err := rsyncCommand.CombinedOutput()
 	if err != nil {
-		ctx.WithError(err)
+		logError(ctx, err, "rsyncProject", "rsync script failure")
 	}
 	ctx.Info(string(res))
 }
 
-func createTempSSHKey(dockerInfo DockerInfo, buildServerPath string) error {
+func createTempSSHKey(ctx log.Interface, dockerInfo DockerInfo, buildServerPath string) error {
 	var err_return error
-	ctx := log.WithFields(log.Fields{
-		"repo": dockerInfo.REPO_NAME,
-		"env":  dockerInfo.ENVIRONMENT,
-	})
 
 	d1 := []byte(dockerInfo.DEPLOY_KEY)
 	err := ioutil.WriteFile(buildServerPath+"/id_rsa", d1, 0644)
 	if err != nil {
-		ctx.WithError(err)
+		logError(ctx, err, "createTempSSHKey", "write of id_rsa failed")
 	}
 	err_return = err
 
@@ -227,21 +216,21 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	buildServerPath := Config.BUILDLOCATION + "/" + dockerInfo.PATH
 
 	err := os.MkdirAll(buildServerPath, 0770)
-	err = createTempSSHKey(dockerInfo, buildServerPath)
-	err = GenerateDockerFile(dockerInfo, buildServerPath)
+	err = createTempSSHKey(ctx, dockerInfo, buildServerPath)
+	err = GenerateDockerFile(ctx, dockerInfo, buildServerPath)
 
 	if err != nil {
-		ctx.WithError(err)
+		logError(ctx, err, "BuildDockerFile", "GenerateDockerFile failed")
 		r.JSON(500, map[string]interface{}{"detail": "failed to build"})
-		updateApiStatus(dockerInfo, "failed")
+		updateApiStatus(ctx, dockerInfo, "failed")
 	}
 
 	ctx.Info("Dockerfile generated successfully...building container...")
 
 	// Need to pass in more informabout about the location of
-	go Build(buildServerPath, dockerInfo)
+	go Build(ctx, buildServerPath, dockerInfo)
 
-	r.JSON(201, nil)
+	r.Status(201)
 }
 
 func SystemHealth(p martini.Params, r render.Render) {
