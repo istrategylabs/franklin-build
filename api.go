@@ -43,6 +43,7 @@ var Config config
 func init() {
 	log.SetHandler(cli.New(os.Stdout))
 	log.SetLevel(log.DebugLevel)
+	log.Infof("Initializing Application")
 
 	Config.BUILDLOCATION = os.Getenv("BUILD_LOCATION")
 	if Config.BUILDLOCATION == "" {
@@ -205,11 +206,13 @@ func createTempSSHKey(ctx log.Interface, dockerInfo DockerInfo, buildServerPath 
 
 func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 	log.SetHandler(cli.New(os.Stdout))
+	log.SetLevel(log.DebugLevel)
 
 	ctx := log.WithFields(log.Fields{
 		"repo": dockerInfo.REPO_NAME,
 		"env":  dockerInfo.ENVIRONMENT,
 	})
+	log.Infof("Running main process")
 	ctx.Info(fmt.Sprintf("Started building %s", dockerInfo.REPO_NAME))
 
 	// Let's hold a reference to the project's path to build on
