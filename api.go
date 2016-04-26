@@ -99,6 +99,7 @@ func BuildDockerContainer(ctx log.Interface, com, quit chan string, buildServerP
 	//}
 	if err != nil {
 		logError(ctx, err, "BuildDockerContainer", "docker build failed")
+		ctx.Info(string(out)[0:100] + "...")
 		quit <- "fail"
 	} else {
 		ctx.Info("Docker Build succeeded...")
