@@ -68,7 +68,8 @@ func updateApiStatus(ctx log.Interface, dockerInfo DockerInfo, data string) {
 		return
 	}
 
-	var jsonStr = []byte(fmt.Sprintf(`{"status":"%s","environment":"%s"}`, data, dockerInfo.ENVIRONMENT))
+	var payload = fmt.Sprintf(`{"status":"%s","environment":"%s"}`, data, dockerInfo.ENVIRONMENT)
+	var jsonStr = []byte(payload)
 	req, err := http.NewRequest("POST", dockerInfo.CALLBACK, bytes.NewBuffer(jsonStr))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -77,10 +78,11 @@ func updateApiStatus(ctx log.Interface, dockerInfo DockerInfo, data string) {
 
 	if err != nil {
 		logError(ctx, err, "updateApiStatus", "Failed API callback")
+	} else {
+		ctx.Info("Updated API - " + payload + " - " + resp.Status)
 	}
 
 	defer resp.Body.Close()
-	ctx.Warn(resp.Status)
 }
 
 // BuildDockerContainer executes a docker build command and assigns it a random tag
@@ -91,12 +93,16 @@ func BuildDockerContainer(ctx log.Interface, com, quit chan string, buildServerP
 	// TODO: REMOVE TEMP LAYERS
 	out, err := exec.Command("docker", "build", "--no-cache=True", "-t", randomTag, buildServerPath).Output()
 
-	if string(out) != "" {
-		ctx.Info(string(out))
-	}
+	// TODO - Write this to a file to return build logs
+	// if string(out) != "" {
+	//  	ctx.Info(string(out))
+	//}
 	if err != nil {
 		logError(ctx, err, "BuildDockerContainer", "docker build failed")
 		quit <- "fail"
+	} else {
+		ctx.Info("Docker Build succeeded...")
+		ctx.Info(string(out)[0:20] + "...")
 	}
 	// Passing along the randomTag associated with the built docker container to the channel 'com'
 	com <- randomTag
@@ -137,6 +143,8 @@ func GenerateDockerFile(ctx log.Interface, dockerInfo DockerInfo, buildServerPat
 	err_return = err
 	if err != nil {
 		logError(ctx, err, "GenerateDockerFile", "map info to docker template fail")
+	} else {
+		ctx.Info("Dockerfile generated successfully...")
 	}
 
 	return err_return
@@ -149,29 +157,31 @@ func GrabBuiltStaticFiles(ctx log.Interface, dockerImageID, projectName, buildSe
 	mountStringSlice := []string{buildServerPath, ":", "/tmp_mount"}
 	mountString := strings.Join(mountStringSlice, "")
 
+	ctx.Info("Transferring built files...")
 	transfer := exec.Command("scripts/transfer_files.sh", mountString, dockerImageID, projectName)
 	res, err := transfer.CombinedOutput()
 	if err != nil {
 		logError(ctx, err, "GrabBuiltStatucFiles", "transfer script failure")
+	} else {
+		ctx.Info("Built files transferring...")
+		ctx.Info(string(res)[0:20] + "...")
 	}
-	ctx.Warn(string(res))
 }
 
 func Build(ctx log.Interface, buildServerPath string, dockerInfo DockerInfo) string {
 	c1 := make(chan string)
 	quit := make(chan string)
+	ctx.Info("Building container...")
 	go BuildDockerContainer(ctx, c1, quit, buildServerPath)
-	updateApiStatus(ctx, dockerInfo, "building")
 
 	// Looping until we get notification on the channel c1 that the build has finished
 	for {
 		select {
 		case <-quit:
-			ctx.Info("There was an error building the docker container")
 			updateApiStatus(ctx, dockerInfo, "failed")
 			return "fail"
 		case buildTag := <-c1:
-			ctx.Info("Container built...transfering built files...")
+			ctx.Info("Container built...")
 			GrabBuiltStaticFiles(ctx, buildTag, dockerInfo.REPO_NAME, buildServerPath)
 			if Config.ENV != "test" {
 				rsyncProject(ctx, buildServerPath+"/public/*", Config.DEPLOYROOTPATH+dockerInfo.PATH)
@@ -187,8 +197,10 @@ func rsyncProject(ctx log.Interface, buildServerPath, remoteLoc string) {
 	res, err := rsyncCommand.CombinedOutput()
 	if err != nil {
 		logError(ctx, err, "rsyncProject", "rsync script failure")
+	} else {
+		ctx.Info("Rsync successful...")
+		ctx.Info(string(res)[0:20] + "...")
 	}
-	ctx.Info(string(res))
 }
 
 func createTempSSHKey(ctx log.Interface, dockerInfo DockerInfo, buildServerPath string) error {
@@ -198,6 +210,8 @@ func createTempSSHKey(ctx log.Interface, dockerInfo DockerInfo, buildServerPath 
 	err := ioutil.WriteFile(buildServerPath+"/id_rsa", d1, 0644)
 	if err != nil {
 		logError(ctx, err, "createTempSSHKey", "write of id_rsa failed")
+	} else {
+		ctx.Info("Writing id_rsa to file succeeded...")
 	}
 	err_return = err
 
@@ -212,8 +226,7 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 		"repo": dockerInfo.REPO_NAME,
 		"env":  dockerInfo.ENVIRONMENT,
 	})
-	log.Infof("Running main process")
-	ctx.Info(fmt.Sprintf("Started building %s", dockerInfo.REPO_NAME))
+	ctx.Info("Started building...")
 
 	// Let's hold a reference to the project's path to build on
 	buildServerPath := Config.BUILDLOCATION + "/" + dockerInfo.PATH
@@ -227,8 +240,6 @@ func BuildDockerFile(p martini.Params, r render.Render, dockerInfo DockerInfo) {
 		r.JSON(500, map[string]interface{}{"detail": "failed to build"})
 		updateApiStatus(ctx, dockerInfo, "failed")
 	}
-
-	ctx.Info("Dockerfile generated successfully...building container...")
 
 	// Need to pass in more informabout about the location of
 	go Build(ctx, buildServerPath, dockerInfo)
