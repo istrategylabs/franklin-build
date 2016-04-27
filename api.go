@@ -17,6 +17,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"unicode/utf8"
 )
 
 // A DockerInfo represents the structure of data coming from Franklin-api
@@ -59,8 +60,29 @@ func init() {
 
 }
 
-func logError(ctx log.Interface, err error, function string, msg string) {
+func logError(ctx log.Interface, err error, function string, msg string, details ...string) {
 	ctx.WithField("func", function).WithError(err).Error(msg)
+	if len(details) > 0 {
+		logDetails(ctx, details[0], 5000)
+	}
+}
+
+func logDetails(ctx log.Interface, msg string, length ...int) {
+	// TODO - Add a feature flag for log verbosity
+
+	// Log length can't be longer than the message
+	logLimit := utf8.RuneCountInString(msg)
+
+	// ...or longer than the optional passed length
+	if len(length) > 0 && length[0] < logLimit {
+		logLimit = length[0]
+	} else if logLimit > 500 {
+		// Default limit if one isn't passed in
+		logLimit = 500
+	}
+	if logLimit > 0 {
+		ctx.Info(msg[0:logLimit] + "...")
+	}
 }
 
 func updateApiStatus(ctx log.Interface, dockerInfo DockerInfo, data string) {
@@ -98,12 +120,11 @@ func BuildDockerContainer(ctx log.Interface, com, quit chan string, buildServerP
 	//  	ctx.Info(string(out))
 	//}
 	if err != nil {
-		logError(ctx, err, "BuildDockerContainer", "docker build failed")
-		ctx.Info(string(out)[0:100] + "...")
+		logError(ctx, err, "BuildDockerContainer", "docker build failed", string(out))
 		quit <- "fail"
 	} else {
 		ctx.Info("Docker Build succeeded...")
-		ctx.Info(string(out)[0:20] + "...")
+		logDetails(ctx, string(out))
 	}
 	// Passing along the randomTag associated with the built docker container to the channel 'com'
 	com <- randomTag
@@ -165,7 +186,7 @@ func GrabBuiltStaticFiles(ctx log.Interface, dockerImageID, projectName, buildSe
 		logError(ctx, err, "GrabBuiltStatucFiles", "transfer script failure")
 	} else {
 		ctx.Info("Built files transferring...")
-		ctx.Info(string(res)[0:20] + "...")
+		logDetails(ctx, string(res))
 	}
 }
 
@@ -200,7 +221,7 @@ func rsyncProject(ctx log.Interface, buildServerPath, remoteLoc string) {
 		logError(ctx, err, "rsyncProject", "rsync script failure")
 	} else {
 		ctx.Info("Rsync successful...")
-		ctx.Info(string(res)[0:20] + "...")
+		logDetails(ctx, string(res))
 	}
 }
 
