@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/cli"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
@@ -13,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
@@ -33,9 +37,12 @@ type DockerInfo struct {
 }
 
 type config struct {
-	BUILDLOCATION  string // Location of built files on build server
-	DEPLOYROOTPATH string // The root of where we want to rsync files to
-	ENV            string // Environment of running Franklin-build instance
+	BUILDLOCATION         string // Location of built files on build server
+	DEPLOYROOTPATH        string // The root of where we want to rsync files to
+	ENV                   string // Environment of running Franklin-build instance
+	AWS_ACCESS_KEY_ID     string // Amazon Creds for uploading files to S3
+	AWS_SECRET_ACCESS_KEY string // Complimenting secret for above
+	AWSBUCKET             string // Name of bucket on S3
 }
 
 var Config config
@@ -57,6 +64,9 @@ func init() {
 		panic("Missing environment variable DEPLOY_ROOT_FOLDER")
 	}
 	Config.ENV = os.Getenv("ENV")
+	Config.AWSBUCKET = os.Getenv("AWS_BUCKET")
+	Config.AWS_ACCESS_KEY_ID = os.Getenv("AWS_ACCESS_KEY_ID")
+	Config.AWS_SECRET_ACCESS_KEY = os.Getenv("AWS_SECRET_ACCESS_KEY")
 
 }
 
@@ -206,12 +216,60 @@ func Build(ctx log.Interface, buildServerPath string, dockerInfo DockerInfo) str
 			ctx.Info("Container built...")
 			GrabBuiltStaticFiles(ctx, buildTag, dockerInfo.REPO_NAME, buildServerPath)
 			if Config.ENV != "test" {
-				rsyncProject(ctx, buildServerPath+"/public/*", Config.DEPLOYROOTPATH+dockerInfo.PATH)
+				uploadProjectS3(ctx, buildServerPath+"/public/*", Config.DEPLOYROOTPATH+dockerInfo.PATH)
 			}
 			updateApiStatus(ctx, dockerInfo, "success")
 			return "success"
 		}
 	}
+}
+
+func uploadProjectS3(ctx log.Interface, localPath, remoteLoc string) {
+	ctx.Info("Uploading to S3...")
+	walker := make(fileWalk)
+	go func() {
+		// Gather the files to upload by walking the path recursively.
+		if err := filepath.Walk(localPath, walker.Walk); err != nil {
+			logError(ctx, err, "rsyncProjectS3", "Walk failed")
+		}
+		close(walker)
+	}()
+
+	// For each file found walking upload it to S3.
+	uploader := s3manager.NewUploader(session.New(&aws.Config{Region: aws.String("us-east-1")}))
+	for path := range walker {
+		rel, err := filepath.Rel(localPath, path)
+		if err != nil {
+			logError(ctx, err, "rsyncProjectS3", "Failed relative path")
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			logError(ctx, err, "rsyncProjectS3", "Open file failed")
+			continue
+		}
+		defer file.Close()
+		_, err = uploader.Upload(&s3manager.UploadInput{
+			Bucket: &Config.AWSBUCKET,
+			Key:    aws.String(filepath.Join(remoteLoc, rel)),
+			Body:   file,
+		})
+		if err != nil {
+			logError(ctx, err, "rsyncProjectS3", "rsync failed")
+		}
+	}
+	ctx.Info("Upload successful...")
+}
+
+type fileWalk chan string
+
+func (f fileWalk) Walk(path string, info os.FileInfo, err error) error {
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		f <- path
+	}
+	return nil
 }
 
 func rsyncProject(ctx log.Interface, buildServerPath, remoteLoc string) {

@@ -36,10 +36,16 @@ The following environment variables will need to be set:
 	BUILD_LOCATION
 	ENV
 	DEPLOY_ROOT_FOLDER
+	AWS_ACCESS_KEY_ID
+	AWS_SECRET_ACCESS_KEY
+	AWS_BUCKET
 
 1. Set the BUILD_LOCATION environment variable (location where project will build to): `export BUILD_LOCATION=<location>`
 2. Set the ENV environment variable (production or test): `export ENV=test`
-4. Set the DEPLOY_ROOT_FOLDER variable to the folder where successfully build projects will be rsync'd to. Nginx in `franklin` will have the same exact setting. `export DEPLOY_ROOT_FOLDER=/var/www/franklin/`
+3. Set the DEPLOY_ROOT_FOLDER variable to the folder where successfully build projects will be rsync'd to. Nginx in `franklin` will have the same exact setting. `export DEPLOY_ROOT_FOLDER=/var/www/franklin/`
+4. Local dev only. Used to send built files to Amazon S3
+5. Local dev only.
+6. The name of the bucket on S3 to send the files to
 
 ## Running
 1. `make run`
