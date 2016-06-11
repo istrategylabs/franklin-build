@@ -216,7 +216,7 @@ func Build(ctx log.Interface, buildServerPath string, dockerInfo DockerInfo) str
 			ctx.Info("Container built...")
 			GrabBuiltStaticFiles(ctx, buildTag, dockerInfo.REPO_NAME, buildServerPath)
 			if Config.ENV != "test" {
-				uploadProjectS3(ctx, buildServerPath+"/public/*", Config.DEPLOYROOTPATH+dockerInfo.PATH)
+				uploadProjectS3(ctx, buildServerPath+"/public/", Config.DEPLOYROOTPATH+dockerInfo.PATH)
 			}
 			updateApiStatus(ctx, dockerInfo, "success")
 			return "success"
