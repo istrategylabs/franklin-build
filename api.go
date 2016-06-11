@@ -63,11 +63,22 @@ func init() {
 		log.Warn("Missing environment variable DEPLOY_ROOT_FOLDER")
 		panic("Missing environment variable DEPLOY_ROOT_FOLDER")
 	}
-	Config.ENV = os.Getenv("ENV")
-	Config.AWSBUCKET = os.Getenv("AWS_BUCKET")
+	Config.AWS_BUCKET = os.Getenv("AWS_BUCKET")
+	if Config.AWS_BUCKET == "" {
+		log.Warn("Missing environment variable AWS_BUCKET")
+		panic("Missing environment variable AWS_BUCKET")
+	}
 	Config.AWS_ACCESS_KEY_ID = os.Getenv("AWS_ACCESS_KEY_ID")
+	if Config.AWS_ACCESS_KEY_ID == "" {
+		log.Warn("Missing environment variable AWS_ACCESS_KEY_ID")
+		panic("Missing environment variable AWS_ACCESS_KEY_ID")
+	}
 	Config.AWS_SECRET_ACCESS_KEY = os.Getenv("AWS_SECRET_ACCESS_KEY")
-
+	if Config.AWS_SECRET_ACCESS_KEY == "" {
+		log.Warn("Missing environment variable AWS_SECRET_ACCESS_KEY")
+		panic("Missing environment variable AWS_SECRET_ACCESS_KEY")
+	}
+	Config.ENV = os.Getenv("ENV")
 }
 
 func logError(ctx log.Interface, err error, function string, msg string, details ...string) {
@@ -249,7 +260,7 @@ func uploadProjectS3(ctx log.Interface, localPath, remoteLoc string) {
 		}
 		defer file.Close()
 		_, err = uploader.Upload(&s3manager.UploadInput{
-			Bucket: &Config.AWSBUCKET,
+			Bucket: &Config.AWS_BUCKET,
 			Key:    aws.String(filepath.Join(remoteLoc, rel)),
 			Body:   file,
 		})
