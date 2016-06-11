@@ -246,10 +246,14 @@ func uploadProjectS3(ctx log.Interface, localPath, remoteLoc string) {
 		close(walker)
 	}()
 
-	// For each file found walking upload it to S3.
+    // Setup for upload
 	uploader := s3manager.NewUploader(session.New(&aws.Config{Region: aws.String("us-east-1")}))
+    buildLoc = Config.BUILDLOCATION + "/"
+
+	// For each file found walking upload it to S3.
 	for path := range walker {
-		rel, err := filepath.Rel(localPath, path)
+        trimmedPath = strings.Trim(path, buildLoc)
+		rel, err := filepath.Rel(localPath, trimmedPath)
 		if err != nil {
 			logError(ctx, err, "rsyncProjectS3", "Failed relative path")
 		}
