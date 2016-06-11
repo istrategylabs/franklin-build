@@ -42,7 +42,7 @@ type config struct {
 	ENV                   string // Environment of running Franklin-build instance
 	AWS_ACCESS_KEY_ID     string // Amazon Creds for uploading files to S3
 	AWS_SECRET_ACCESS_KEY string // Complimenting secret for above
-	AWSBUCKET             string // Name of bucket on S3
+	AWS_BUCKET            string // Name of bucket on S3
 }
 
 var Config config
