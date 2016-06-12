@@ -253,7 +253,7 @@ func uploadProjectS3(ctx log.Interface, localPath, remoteLoc string) {
 	// For each file found walking upload it to S3.
 	for path := range walker {
         trimmedPath := strings.Replace(path, buildLoc, "", -1)
-        s3Path := strings.Replace(path, "public/", "", -1)
+        s3Path := strings.Replace(trimmedPath, "public/", "", -1)
 		rel, err := filepath.Rel(localPath, s3Path)
 		if err != nil {
 			logError(ctx, err, "rsyncProjectS3", "Failed relative path")
