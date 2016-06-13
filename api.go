@@ -269,7 +269,7 @@ func uploadProjectS3(ctx log.Interface, localPath, remoteLoc string) {
 			Bucket:      &Config.AWS_BUCKET,
 			Key:         aws.String(filepath.Join(remoteLoc, rel)),
 			Body:        file,
-			ContentType: mime.TypeByExtension(filepath.Ext(path)),
+			ContentType: aws.String(mime.TypeByExtension(filepath.Ext(path))),
 		})
 		if err != nil {
 			logError(ctx, err, "rsyncProjectS3", "rsync failed")
