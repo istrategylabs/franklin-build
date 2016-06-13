@@ -13,6 +13,7 @@ import (
 	"github.com/martini-contrib/render"
 	"io/ioutil"
 	"math/rand"
+	"mime"
 	"net/http"
 	"os"
 	"os/exec"
@@ -246,14 +247,14 @@ func uploadProjectS3(ctx log.Interface, localPath, remoteLoc string) {
 		close(walker)
 	}()
 
-    // Setup for upload
+	// Setup for upload
 	uploader := s3manager.NewUploader(session.New(&aws.Config{Region: aws.String("us-east-1")}))
-    buildLoc := Config.BUILDLOCATION
+	buildLoc := Config.BUILDLOCATION
 
 	// For each file found walking upload it to S3.
 	for path := range walker {
-        trimmedPath := strings.Replace(path, buildLoc, "", -1)
-        s3Path := strings.Replace(trimmedPath, "public/", "", -1)
+		trimmedPath := strings.Replace(path, buildLoc, "", -1)
+		s3Path := strings.Replace(trimmedPath, "public/", "", -1)
 		rel, err := filepath.Rel(localPath, s3Path)
 		if err != nil {
 			logError(ctx, err, "rsyncProjectS3", "Failed relative path")
@@ -265,9 +266,10 @@ func uploadProjectS3(ctx log.Interface, localPath, remoteLoc string) {
 		}
 		defer file.Close()
 		_, err = uploader.Upload(&s3manager.UploadInput{
-			Bucket: &Config.AWS_BUCKET,
-			Key:    aws.String(filepath.Join(remoteLoc, rel)),
-			Body:   file,
+			Bucket:      &Config.AWS_BUCKET,
+			Key:         aws.String(filepath.Join(remoteLoc, rel)),
+			Body:        file,
+			ContentType: mime.TypeByExtension(filepath.Ext(path)),
 		})
 		if err != nil {
 			logError(ctx, err, "rsyncProjectS3", "rsync failed")
