@@ -46,9 +46,9 @@ def deploy():
     restart_service()
 
 @task
-def production():
-    """ use production settings """
-    env.environment = 'production'
+def staging():
+    """ use staging settings """
+    env.environment = 'staging'
     env.repo = ('origin', 'master')
     env.remote, env.branch = env.repo
     env.base = '/home/franklin//src/github.com/istrategylabs/franklin-build'
