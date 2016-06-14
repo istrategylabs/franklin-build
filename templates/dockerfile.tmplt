@@ -1,4 +1,4 @@
-FROM node:5
+FROM node:4.4
 
 RUN mkdir -p /root/.ssh
 ADD id_rsa /root/.ssh/id_rsa
