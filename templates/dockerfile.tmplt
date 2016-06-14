@@ -9,6 +9,7 @@ RUN git clone -b {{ .BRANCH }} git@github.com:{{ .REPO_OWNER }}/{{ .REPO_NAME }}
 RUN cd {{ .REPO_NAME }} && git checkout {{ .HASH }}
 
 ENV NPM_CONFIG_LOGLEVEL warn
+ENV NODE_ENV=production
 
-RUN cd {{ .REPO_NAME }} && npm install --production
+RUN cd {{ .REPO_NAME }} && npm install
 RUN cd {{ .REPO_NAME }} && npm run build
