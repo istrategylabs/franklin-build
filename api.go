@@ -85,7 +85,7 @@ func init() {
 func logError(ctx log.Interface, err error, function string, msg string, details ...string) {
 	ctx.WithField("func", function).WithError(err).Error(msg)
 	if len(details) > 0 {
-		logDetails(ctx, details[0], 5000)
+		logDetails(ctx, details[0], 50000)
 	}
 }
 
@@ -99,9 +99,9 @@ func logDetails(ctx log.Interface, msg string, length ...int) {
 	// ...or longer than the optional passed length
 	if len(length) > 0 && length[0] < logLimit {
 		logLimit = length[0]
-	} else if logLimit > 500 {
+	} else if logLimit > 50000 {
 		// Default limit if one isn't passed in
-		logLimit = 500
+		logLimit = 50000
 	}
 	if logLimit > 0 {
 		// Based on our log limit, figure out the starting point.
