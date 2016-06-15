@@ -93,7 +93,8 @@ func logDetails(ctx log.Interface, msg string, length ...int) {
 	// TODO - Add a feature flag for log verbosity
 
 	// Log length can't be longer than the message
-	logLimit := utf8.RuneCountInString(msg)
+	msgLength := utf8.RuneCountInString(msg)
+	logLimit := msgLength
 
 	// ...or longer than the optional passed length
 	if len(length) > 0 && length[0] < logLimit {
@@ -103,7 +104,9 @@ func logDetails(ctx log.Interface, msg string, length ...int) {
 		logLimit = 500
 	}
 	if logLimit > 0 {
-		ctx.Info(msg[0:logLimit] + "...")
+		// Based on our log limit, figure out the starting point.
+		logStart := msgLength - logLimit
+		ctx.Info("..." + msg[logStart:msgLength])
 	}
 }
 
