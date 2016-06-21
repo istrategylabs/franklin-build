@@ -1,0 +1,17 @@
+{
+  "name": "testProject",
+  "version": "0.1.0",
+  "description": "Franklin-build json test file",
+  "scripts": {
+    "build": "gulp build:production",
+    "dev": "gulp start"
+  },
+  "author": "ISL",
+  "dependencies": {
+    "gulp": "3.9.0"
+  },
+  "engines": {
+    "npm": ">=3.0.0",
+    "node": ">=4.4.0"
+  }
+}
