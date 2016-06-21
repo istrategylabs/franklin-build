@@ -1,5 +1,8 @@
 FROM node:4.4
 
+RUN apt-get update
+RUN apt-get install jq
+
 RUN mkdir -p /root/.ssh
 ADD id_rsa /root/.ssh/id_rsa
 RUN chmod 600 /root/.ssh/id_rsa
@@ -17,4 +20,3 @@ RUN npm install -g npm@$(cat package.json | jq .engines.npm | sed "s/\"//g")
 
 RUN npm install
 RUN npm run build
-
